@@ -1,6 +1,7 @@
 package libvirt
 
 import (
+	"net/url"
 	"testing"
 
 	golibvirt "github.com/digitalocean/go-libvirt"
@@ -31,6 +32,28 @@ func TestNoopChecker(t *testing.T) {
 	}
 	if !checker.IsPoweredOn("any-id") {
 		t.Fatal("noop checker should allow all machines")
+	}
+}
+
+func TestSanitizeEndpoint(t *testing.T) {
+	got := sanitizeEndpoint(`"qemu+tcp://172.19.120.248/system"`)
+	want := "qemu+tcp://172.19.120.248/system"
+	if got != want {
+		t.Fatalf("sanitizeEndpoint() = %q, want %q", got, want)
+	}
+}
+
+func TestParseLibvirtEndpoint(t *testing.T) {
+	endpoint := sanitizeEndpoint("qemu+tcp://172.19.120.248/system")
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		t.Fatalf("url.Parse() error = %v", err)
+	}
+	if parsed.Hostname() != "172.19.120.248" {
+		t.Fatalf("hostname = %q, want 172.19.120.248", parsed.Hostname())
+	}
+	if parsed.Path != "/system" {
+		t.Fatalf("path = %q, want /system", parsed.Path)
 	}
 }
 

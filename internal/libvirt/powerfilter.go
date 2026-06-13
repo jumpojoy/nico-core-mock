@@ -3,12 +3,12 @@ package libvirt
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
 
 	golibvirt "github.com/digitalocean/go-libvirt"
-	"github.com/digitalocean/go-libvirt/socket/dialers"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
@@ -36,7 +36,7 @@ type PowerFilter struct {
 
 // NewPowerFilter connects to libvirt and periodically refreshes powered-on domains.
 func NewPowerFilter(ctx context.Context, endpoint string, refreshInterval time.Duration) (*PowerFilter, error) {
-	endpoint = strings.TrimSpace(endpoint)
+	endpoint = sanitizeEndpoint(endpoint)
 	if endpoint == "" {
 		return nil, fmt.Errorf("libvirt endpoint is required")
 	}
@@ -103,8 +103,13 @@ func (f *PowerFilter) refresh() error {
 }
 
 func listPoweredOnDomainIDs(endpoint string) (map[string]struct{}, error) {
-	l := golibvirt.NewWithDialer(dialers.NewRemote(endpoint))
-	if err := l.ConnectToURI(golibvirt.ConnectURI(endpoint)); err != nil {
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parse libvirt endpoint %q: %w", endpoint, err)
+	}
+
+	l, err := golibvirt.ConnectToURI(parsed)
+	if err != nil {
 		return nil, fmt.Errorf("connect to libvirt %q: %w", endpoint, err)
 	}
 	defer l.Disconnect()
@@ -154,4 +159,9 @@ func formatDomainUUID(raw [16]byte) string {
 
 func canonicalMachineID(id string) string {
 	return strings.ToLower(strings.TrimSpace(id))
+}
+
+func sanitizeEndpoint(endpoint string) string {
+	endpoint = strings.TrimSpace(endpoint)
+	return strings.Trim(endpoint, `"'`)
 }

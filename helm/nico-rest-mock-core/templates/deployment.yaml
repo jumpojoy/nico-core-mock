@@ -37,7 +37,7 @@ spec:
             - --listen=:{{ .Values.service.port }}
             - --log-level={{ .Values.logLevel }}
             {{- if .Values.libvirt.enabled }}
-            - --libvirt-endpoint={{ .Values.libvirt.endpoint | quote }}
+            - --libvirt-endpoint={{ .Values.libvirt.endpoint }}
             - --libvirt-refresh-interval={{ .Values.libvirt.refreshInterval }}
             {{- end }}
           ports:
