@@ -9,19 +9,20 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	"github.com/jumpojoy/nico-core-mock/internal/config"
+	libvirtfilter "github.com/jumpojoy/nico-core-mock/internal/libvirt"
 	forgev1 "github.com/NVIDIA/infra-controller/rest-api/workflow-schema/schema/site-agent/workflows/v1"
 )
 
 var runLogger = log.With().Str("component", "nico-core-mock").Logger()
 
 // Run starts the gRPC server on listenAddr until ctx is cancelled.
-func Run(ctx context.Context, listenAddr string, inventory *config.Inventory) error {
+func Run(ctx context.Context, listenAddr string, inventory *config.Inventory, powerChecker libvirtfilter.PowerChecker) error {
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return err
 	}
 
-	nicoServer := NewFromInventory(inventory)
+	nicoServer := NewFromInventory(inventory, powerChecker)
 	srv := grpc.NewServer(grpc.UnaryInterceptor(func(
 		ctx context.Context,
 		req any,
@@ -44,6 +45,7 @@ func Run(ctx context.Context, listenAddr string, inventory *config.Inventory) er
 	runLogger.Info().
 		Str("addr", listenAddr).
 		Int("machines", len(inventory.Machines)).
+		Bool("libvirt_filter", powerChecker.Enabled()).
 		Msg("started gRPC server")
 
 	err = srv.Serve(listener)

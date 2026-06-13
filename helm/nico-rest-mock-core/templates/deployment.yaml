@@ -35,6 +35,10 @@ spec:
           args:
             - --config=/config/machines.yaml
             - --listen=:{{ .Values.service.port }}
+            {{- if .Values.libvirt.enabled }}
+            - --libvirt-endpoint={{ .Values.libvirt.endpoint | quote }}
+            - --libvirt-refresh-interval={{ .Values.libvirt.refreshInterval }}
+            {{- end }}
           ports:
             - name: grpc
               containerPort: {{ .Values.service.port }}

@@ -49,3 +49,20 @@ To run locally without Kubernetes:
 ```bash
 go run ./cmd/nico-core-mock --config helm/nico-rest-mock-core/rendered/machines.yaml
 ```
+
+When libvirt filtering is enabled, only inventory machines whose `id` matches a powered-on libvirt domain (by domain name or UUID) are returned by `FindMachineIds` and `FindMachinesByIds`:
+
+```bash
+go run ./cmd/nico-core-mock \
+  --config helm/nico-rest-mock-core/rendered/machines.yaml \
+  --libvirt-endpoint=qemu+tcp://192.168.122.1:16509/system
+```
+
+Helm values:
+
+```yaml
+libvirt:
+  enabled: true
+  endpoint: qemu+tcp://192.168.122.1:16509/system
+  refreshInterval: 30s
+```

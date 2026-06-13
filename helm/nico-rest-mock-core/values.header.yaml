@@ -46,3 +46,9 @@ affinity: {}
 extraEnv: []
 extraVolumeMounts: []
 extraVolumes: []
+
+libvirt:
+  enabled: false
+  # libvirt URI, e.g. qemu+tcp://192.168.122.1:16509/system or qemu+ssh://root@host/system
+  endpoint: ""
+  refreshInterval: 30s

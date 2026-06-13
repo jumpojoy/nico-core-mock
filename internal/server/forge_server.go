@@ -31,6 +31,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/jumpojoy/nico-core-mock/internal/config"
+	libvirtfilter "github.com/jumpojoy/nico-core-mock/internal/libvirt"
 
 	"github.com/NVIDIA/infra-controller/rest-api/site-workflow/pkg/grpc/mockdata"
 	cwssaws "github.com/NVIDIA/infra-controller/rest-api/workflow-schema/schema/site-agent/workflows/v1"
@@ -94,6 +95,8 @@ type NICoServerImpl struct {
 
 	// linkedExpectedMachines is populated from YAML when machine_id links are provided.
 	linkedExpectedMachines []*cwssaws.LinkedExpectedMachine
+
+	powerChecker libvirtfilter.PowerChecker
 }
 
 // identityKeyMaterial is a per-org ES256 keypair plus its derived kid.
@@ -191,7 +194,10 @@ func tenantIdentitySigningKeysResponse(st *identityOrgState) []*cwssaws.TenantId
 var logger = log.With().Str("component", "nico-core-mock").Logger()
 
 // NewFromInventory creates a mock Forge server seeded from YAML inventory.
-func NewFromInventory(inv *config.Inventory) *NICoServerImpl {
+func NewFromInventory(inv *config.Inventory, powerChecker libvirtfilter.PowerChecker) *NICoServerImpl {
+	if powerChecker == nil {
+		powerChecker = libvirtfilter.NoopChecker{}
+	}
 	srv := &NICoServerImpl{
 		v:                make(map[string]*cwssaws.Vpc),
 		ns:               make(map[string]*cwssaws.NetworkSegment),
@@ -208,10 +214,26 @@ func NewFromInventory(inv *config.Inventory) *NICoServerImpl {
 		osi:              make(map[string]*cwssaws.OsImage),
 		identityState:    make(map[string]*identityOrgState),
 		tokenDelegations: make(map[string]*cwssaws.TokenDelegationResponse),
+		powerChecker:     powerChecker,
 	}
 	srv.loadFromInventory(inv)
 	srv.LoadTestIdentity()
 	return srv
+}
+
+func (f *NICoServerImpl) machineVisible(id string) bool {
+	return f.powerChecker.IsPoweredOn(id)
+}
+
+func (f *NICoServerImpl) visibleMachineIDs() []string {
+	ids := make([]string, 0, len(f.m))
+	for id := range f.m {
+		if f.machineVisible(id) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // Version implements interface NICoServer
@@ -556,7 +578,7 @@ func (f *NICoServerImpl) InvokeInstancePower(c context.Context, req *cwssaws.Ins
 	}
 
 	_, ok := f.m[req.MachineId.Id]
-	if ok {
+	if ok && f.machineVisible(req.MachineId.Id) {
 		if req.Operation == cwssaws.InstancePowerRequest_POWER_RESET {
 			return &cwssaws.InstancePowerResult{}, nil
 		}
@@ -572,7 +594,7 @@ func (f *NICoServerImpl) FindMachineIds(ctx context.Context, req *cwssaws.Machin
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid request argument")
 	}
 	response := cwssaws.MachineIdList{}
-	for id := range f.m {
+	for _, id := range f.visibleMachineIDs() {
 		response.MachineIds = append(response.MachineIds, &cwssaws.MachineId{Id: id})
 	}
 
@@ -586,7 +608,7 @@ func (f *NICoServerImpl) FindMachinesByIds(ctx context.Context, req *cwssaws.Mac
 	}
 	response := cwssaws.MachineList{}
 	for _, id := range req.MachineIds {
-		if obj, ok := f.m[id.GetId()]; ok {
+		if obj, ok := f.m[id.GetId()]; ok && f.machineVisible(id.GetId()) {
 			mockdata.EnsureMachineDiscoveryInfo(obj)
 			response.Machines = append(response.Machines, obj)
 		}
@@ -730,7 +752,7 @@ func (f *NICoServerImpl) FindSkusByIds(ctx context.Context, req *cwssaws.SkusByI
 		// Associate the SKU with whatever Machine LoadTestMachines created, so
 		// Sku → Machine references are internally consistent in the mock.
 		var assoc []*cwssaws.MachineId
-		for mid := range f.m {
+		for _, mid := range f.visibleMachineIDs() {
 			assoc = append(assoc, &cwssaws.MachineId{Id: mid})
 		}
 		desc := "Mock SKU describing a DGX H100 8x reference platform"
@@ -1054,7 +1076,7 @@ func (f *NICoServerImpl) GetAllExpectedMachinesLinked(ctx context.Context, req *
 			BmcMacAddress:       em.BmcMacAddress,
 			ExpectedMachineId:   em.Id,
 		}
-		for mid := range f.m {
+		for _, mid := range f.visibleMachineIDs() {
 			linked.MachineId = &cwssaws.MachineId{Id: mid}
 			break
 		}
