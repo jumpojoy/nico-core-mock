@@ -1,0 +1,6 @@
+# Helm packaging
+charts/
+*.tgz
+
+# Chart dependencies
+Chart.lock

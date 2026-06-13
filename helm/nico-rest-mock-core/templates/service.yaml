@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nico-rest-mock-core.fullname" . }}
+  labels:
+    {{- include "nico-rest-mock-core.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "nico-rest-mock-core.selectorLabels" . | nindent 4 }}

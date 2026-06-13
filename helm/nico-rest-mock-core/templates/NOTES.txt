@@ -1,0 +1,8 @@
+1. Get the mock service endpoint:
+
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "nico-rest-mock-core.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 11079:{{ .Values.service.port }}
+
+2. The Forge gRPC server listens on port {{ .Values.service.port }}.
+
+3. Update machines via Helm values key `config.machines` or override with your own ConfigMap mount.

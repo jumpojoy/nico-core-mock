@@ -1,0 +1,13 @@
+apiVersion: v2
+name: nico-rest-mock-core
+description: Mock NICo Forge gRPC server with YAML-defined machines
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/jumpojoy/nico-core-mock
+keywords:
+  - nico
+  - mock
+  - grpc
+sources:
+  - https://github.com/jumpojoy/nico-core-mock

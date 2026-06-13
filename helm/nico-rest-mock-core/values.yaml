@@ -1,0 +1,77 @@
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: nico-rest-mock-core
+
+image:
+  repository: nico-core-mock
+  # Always | IfNotPresent | Never
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 11079
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+config:
+  mountPath: /config
+  fileName: machines.yaml
+  machines: |
+    machines:
+      - id: "00000000-0000-4000-8000-000000000001"
+        state: Ready
+        interfaces:
+          - hostname: mock-host-1.nico.local
+            mac_address: "58:a2:e1:5b:d1:b1"
+            addresses:
+              - "10.10.0.11"
+            segment_id: "00000000-0000-4000-9000-000000000000"
+            primary_interface: true
+      - id: "00000000-0000-4000-8000-000000000002"
+        state: Ready
+        interfaces:
+          - hostname: mock-host-2.nico.local
+            mac_address: "58:a2:e1:5b:d1:b2"
+            addresses:
+              - "10.10.0.12"
+            segment_id: "00000000-0000-4000-9000-000000000000"
+            primary_interface: true
+    expected_machines:
+      - id: "00000000-0000-4000-a000-000000000001"
+        machine_id: "00000000-0000-4000-8000-000000000001"
+        bmc_mac_address: "6c:b3:11:8d:8f:70"
+        chassis_serial_number: "MOCK-CHASSIS-001"
+
+extraEnv: []
+extraVolumeMounts: []
+extraVolumes: []

@@ -1,0 +1,39 @@
+# nico-core-mock
+
+Mock NICo Forge gRPC server with machines defined in YAML. Includes a Helm chart for local Kubernetes deployment.
+
+## Local kind workflow
+
+Build and deploy assuming:
+
+- `nico-core-mock` and `infra-controller` are sibling directories under the same parent (required for the Docker build context)
+- A kind cluster named `nico-rest-local`
+- A local registry listening on `localhost:5000`
+
+Run the Docker build from the **parent** of `nico-core-mock` (the directory that contains both `nico-core-mock/` and `infra-controller/`):
+
+```bash
+docker build -f nico-core-mock/Dockerfile -t localhost:5000/nico-core-mock:latest .
+
+kind load docker-image localhost:5000/nico-core-mock:latest --name nico-rest-local
+```
+
+From the **nico-core-mock** repository root, deploy with Helm:
+
+```bash
+kubectl create namespace nico-rest --dry-run=client -o yaml | kubectl apply -f -
+
+helm upgrade --install nico-rest-mock-core helm/nico-rest-mock-core/ \
+  --namespace nico-rest \
+  --set image.repository=localhost:5000/nico-core-mock \
+  --set image.tag=latest \
+  --set image.pullPolicy=Never
+```
+
+The gRPC server listens on port `11079`. Port-forward to reach it from the host:
+
+```bash
+kubectl port-forward -n nico-rest svc/nico-rest-mock-core 11079:11079
+```
+
+Machine inventory is configured via `config.machines` in `helm/nico-rest-mock-core/values.yaml` or by overriding that value at install time.
