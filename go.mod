@@ -8,6 +8,7 @@ require (
 	github.com/gogo/status v1.1.1
 	github.com/google/uuid v1.6.0
 	github.com/rs/zerolog v1.33.0
+	golang.org/x/term v0.40.0
 	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1

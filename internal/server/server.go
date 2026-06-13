@@ -26,12 +26,17 @@ func Run(ctx context.Context, listenAddr string, inventory *config.Inventory, po
 	srv := grpc.NewServer(grpc.UnaryInterceptor(func(
 		ctx context.Context,
 		req any,
-		_ *grpc.UnaryServerInfo,
+		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (any, error) {
 		nicoServer.mu.Lock()
 		defer nicoServer.mu.Unlock()
-		return handler(ctx, req)
+		runLogger.Debug().Str("method", info.FullMethod).Msg("gRPC request")
+		resp, err := handler(ctx, req)
+		if err != nil {
+			runLogger.Debug().Str("method", info.FullMethod).Err(err).Msg("gRPC request failed")
+		}
+		return resp, err
 	}))
 	reflection.Register(srv)
 	forgev1.RegisterForgeServer(srv, nicoServer)
@@ -47,6 +52,19 @@ func Run(ctx context.Context, listenAddr string, inventory *config.Inventory, po
 		Int("machines", len(inventory.Machines)).
 		Bool("libvirt_filter", powerChecker.Enabled()).
 		Msg("started gRPC server")
+
+	if powerChecker.Enabled() {
+		visible := 0
+		for id := range inventory.Machines {
+			if powerChecker.IsPoweredOn(id) {
+				visible++
+			}
+		}
+		runLogger.Debug().
+			Int("inventory_machines", len(inventory.Machines)).
+			Int("visible_machines", visible).
+			Msg("libvirt machine visibility")
+	}
 
 	err = srv.Serve(listener)
 	if err != nil && ctx.Err() == nil {
