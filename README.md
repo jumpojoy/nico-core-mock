@@ -36,4 +36,16 @@ The gRPC server listens on port `11079`. Port-forward to reach it from the host:
 kubectl port-forward -n nico-rest svc/nico-rest-mock-core 11079:11079
 ```
 
-Machine inventory is configured via `config.machines` in `helm/nico-rest-mock-core/values.yaml` or by overriding that value at install time.
+Mock hosts (machines + discovery metadata) are defined in `helm/nico-rest-mock-core/values.yaml` under the `inventory` key. The chart renders that into a ConfigMap at deploy time.
+
+To regenerate inventory from infra-controller `mockdata` after upstream changes:
+
+```bash
+go run scripts/gen-discovery/main.go
+```
+
+To run locally without Kubernetes:
+
+```bash
+go run ./cmd/nico-core-mock --config helm/nico-rest-mock-core/rendered/machines.yaml
+```

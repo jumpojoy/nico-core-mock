@@ -5,5 +5,5 @@ metadata:
   labels:
     {{- include "nico-rest-mock-core.labels" . | nindent 4 }}
 data:
-  {{ .Values.config.fileName }}: |
-{{ .Values.config.machines | indent 4 }}
+  machines.yaml: |
+{{ .Values.inventory | toYaml | indent 4 }}

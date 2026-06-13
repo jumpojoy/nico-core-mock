@@ -5,4 +5,4 @@
 
 2. The Forge gRPC server listens on port {{ .Values.service.port }}.
 
-3. Update machines via Helm values key `config.machines` or override with your own ConfigMap mount.
+3. Edit mock hosts in Helm values key `inventory` (`helm/nico-rest-mock-core/values.yaml`).

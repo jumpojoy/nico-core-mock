@@ -1,0 +1,48 @@
+# Mock host inventory under `inventory` is generated from infra-controller mockdata.
+# Regenerate: go run scripts/gen-discovery/main.go
+
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: nico-rest-mock-core
+
+image:
+  repository: nico-core-mock
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 11079
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+extraEnv: []
+extraVolumeMounts: []
+extraVolumes: []

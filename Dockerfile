@@ -26,7 +26,7 @@ RUN go build \
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /nico-core-mock /nico-core-mock
-COPY nico-core-mock/config/machines.yaml /config/machines.yaml
+COPY nico-core-mock/helm/nico-rest-mock-core/rendered/machines.yaml /config/machines.yaml
 
 EXPOSE 11079
 

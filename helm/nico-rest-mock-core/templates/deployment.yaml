@@ -33,7 +33,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" | quote }}
           args:
-            - --config={{ .Values.config.mountPath }}/{{ .Values.config.fileName }}
+            - --config=/config/machines.yaml
             - --listen=:{{ .Values.service.port }}
           ports:
             - name: grpc
@@ -53,7 +53,7 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: config
-              mountPath: {{ .Values.config.mountPath }}
+              mountPath: /config
               readOnly: true
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
