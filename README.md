@@ -27,7 +27,9 @@ helm upgrade --install nico-rest-mock-core helm/nico-rest-mock-core/ \
   --namespace nico-rest \
   --set image.repository=localhost:5000/nico-core-mock \
   --set image.tag=latest \
-  --set image.pullPolicy=Never
+  --set image.pullPolicy=Never \
+  --set libvirt.enabled=true \
+  --set libvirt.endpoint="qemu+tcp://172.19.120.248/system"
 ```
 
 The gRPC server listens on port `11079`. Port-forward to reach it from the host:
