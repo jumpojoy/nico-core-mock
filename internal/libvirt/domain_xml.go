@@ -174,10 +174,16 @@ func attributeValue(tag, name string) string {
 }
 
 func setAttribute(tag, name, value string) string {
-	pattern := regexp.MustCompile(fmt.Sprintf(`(\b%s=)(['"])[^'"]*\2`, regexp.QuoteMeta(name)))
-	replacement := fmt.Sprintf(`$1'%s'`, xmlAttr(value))
-	if pattern.MatchString(tag) {
-		return pattern.ReplaceAllString(tag, replacement)
+	escapedName := regexp.QuoteMeta(name)
+
+	singleQuoted := regexp.MustCompile(fmt.Sprintf(`(\b%s=)'[^']*'`, escapedName))
+	if singleQuoted.MatchString(tag) {
+		return singleQuoted.ReplaceAllString(tag, fmt.Sprintf(`$1'%s'`, xmlAttr(value)))
+	}
+
+	doubleQuoted := regexp.MustCompile(fmt.Sprintf(`(\b%s=)"[^"]*"`, escapedName))
+	if doubleQuoted.MatchString(tag) {
+		return doubleQuoted.ReplaceAllString(tag, fmt.Sprintf(`$1"%s"`, xmlAttr(value)))
 	}
 
 	open := regexp.MustCompile(`^(<\w+\b)([^>]*)(/?>)`).FindStringSubmatch(tag)
@@ -188,7 +194,7 @@ func setAttribute(tag, name, value string) string {
 	if attrs == "" {
 		return open[1] + fmt.Sprintf(` %s='%s'`, name, xmlAttr(value)) + open[3] + tag[len(open[0]):]
 	}
-	return open[1] + attrs + fmt.Sprintf(` %s='%s'`, name, xmlAttr(value)) + open[3] + tag[len(open[0]):]
+	return open[1] + open[2] + fmt.Sprintf(` %s='%s'`, name, xmlAttr(value)) + open[3] + tag[len(open[0]):]
 }
 
 func xmlAttr(value string) string {

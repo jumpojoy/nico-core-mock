@@ -81,3 +81,20 @@ func TestPatchDomainBootDiskXMLErrorsWithoutDisk(t *testing.T) {
 		t.Fatal("expected error when domain has no disks")
 	}
 }
+
+func TestSetAttribute(t *testing.T) {
+	got := setAttribute(`<disk type='file' device='disk'>`, "type", "volume")
+	if got != `<disk type='volume' device='disk'>` {
+		t.Fatalf("setAttribute() = %q", got)
+	}
+
+	got = setAttribute(`<disk type="file" device="disk">`, "type", "volume")
+	if got != `<disk type="volume" device="disk">` {
+		t.Fatalf("setAttribute() with double quotes = %q", got)
+	}
+
+	got = setAttribute(`<disk device='disk'>`, "type", "volume")
+	if got != `<disk device='disk' type='volume'>` {
+		t.Fatalf("setAttribute() insert = %q", got)
+	}
+}

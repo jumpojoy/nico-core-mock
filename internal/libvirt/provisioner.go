@@ -53,7 +53,7 @@ func (p *Provisioner) ProvisionMachine(ctx context.Context, req ProvisionRequest
 		return fmt.Errorf("machine id is required")
 	}
 	if strings.TrimSpace(req.ImageURL) == "" {
-		return fmt.Errorf("image url is required")
+		return p.startExistingDomain(ctx, machineID)
 	}
 
 	log.Info().
@@ -164,6 +164,31 @@ func (p *Provisioner) ReleaseMachine(ctx context.Context, machineID string) erro
 	}
 
 	log.Info().Str("machine_id", machineID).Msg("released libvirt volume")
+	return nil
+}
+
+func (p *Provisioner) startExistingDomain(ctx context.Context, machineID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	log.Info().Str("machine_id", machineID).Msg("starting existing libvirt domain without os image")
+
+	l, err := Connect(p.cfg.Endpoint)
+	if err != nil {
+		return err
+	}
+	defer l.Disconnect()
+
+	domain, err := lookupDomainByMachineID(l, machineID)
+	if err != nil {
+		return err
+	}
+	if err := startDomain(l, domain, machineID); err != nil {
+		return err
+	}
+
+	log.Info().Str("machine_id", machineID).Msg("libvirt domain started")
 	return nil
 }
 

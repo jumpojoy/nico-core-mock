@@ -230,21 +230,31 @@ func (f *NICoServerImpl) machineVisible(id string) bool {
 	return f.powerChecker.IsPoweredOn(id)
 }
 
-func (f *NICoServerImpl) osImageSourceURL(config *cwssaws.InstanceConfig) (string, uint64, error) {
+func (f *NICoServerImpl) osImageLookupID(config *cwssaws.InstanceConfig) string {
 	if config == nil || config.Os == nil {
-		return "", 0, fmt.Errorf("instance config has no operating system")
+		return ""
 	}
-	osImageID := config.Os.GetOsImageId()
-	if osImageID == nil || osImageID.Value == "" {
+	if id := config.Os.GetOsImageId(); id != nil && id.Value != "" {
+		return id.Value
+	}
+	if id := config.Os.GetOperatingSystemId(); id != nil && id.Value != "" {
+		return id.Value
+	}
+	return ""
+}
+
+func (f *NICoServerImpl) osImageSourceURL(config *cwssaws.InstanceConfig) (string, uint64, error) {
+	lookupID := f.osImageLookupID(config)
+	if lookupID == "" {
 		return "", 0, fmt.Errorf("instance config has no os_image_id")
 	}
-	img, ok := f.osi[osImageID.Value]
+	img, ok := f.osi[lookupID]
 	if !ok {
-		return "", 0, fmt.Errorf("os image %q not found", osImageID.Value)
+		return "", 0, fmt.Errorf("os image %q not found", lookupID)
 	}
 	attrs := img.GetAttributes()
 	if attrs == nil || strings.TrimSpace(attrs.GetSourceUrl()) == "" {
-		return "", 0, fmt.Errorf("os image %q has no source_url", osImageID.Value)
+		return "", 0, fmt.Errorf("os image %q has no source_url", lookupID)
 	}
 	return attrs.GetSourceUrl(), attrs.GetCapacity(), nil
 }
@@ -259,11 +269,10 @@ func (f *NICoServerImpl) scheduleLibvirtProvision(req *cwssaws.InstanceAllocatio
 
 	imageURL, capacity, err := f.osImageSourceURL(req.Config)
 	if err != nil {
-		logger.Warn().
+		logger.Debug().
 			Err(err).
 			Str("machine_id", req.MachineId.GetId()).
-			Msg("skipping libvirt provisioning: no usable os image")
-		return
+			Msg("libvirt provisioning without os image")
 	}
 
 	machineID := req.MachineId.GetId()
@@ -279,6 +288,10 @@ func (f *NICoServerImpl) scheduleLibvirtProvision(req *cwssaws.InstanceAllocatio
 				Str("machine_id", machineID).
 				Str("image_url", imageURL).
 				Msg("libvirt provisioning failed")
+			return
+		}
+		if imageURL == "" {
+			logger.Info().Str("machine_id", machineID).Msg("libvirt domain started without os image")
 			return
 		}
 		logger.Info().Str("machine_id", machineID).Msg("libvirt provisioning succeeded")
