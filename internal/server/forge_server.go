@@ -88,6 +88,7 @@ type NICoServerImpl struct {
 	tt  map[string]*cwssaws.Tenant
 	vp  map[string]*cwssaws.VpcPrefix
 	osi map[string]*cwssaws.OsImage
+	it  map[string]*cwssaws.InstanceType
 
 	// Per-org machine identity state.
 	identityState    map[string]*identityOrgState
@@ -98,6 +99,7 @@ type NICoServerImpl struct {
 
 	powerChecker libvirtfilter.PowerChecker
 	provisioner  *libvirtfilter.Provisioner
+	stateFile    string
 }
 
 // identityKeyMaterial is a per-org ES256 keypair plus its derived kid.
@@ -213,6 +215,7 @@ func NewFromInventory(inv *config.Inventory, powerChecker libvirtfilter.PowerChe
 		tt:               make(map[string]*cwssaws.Tenant),
 		vp:               make(map[string]*cwssaws.VpcPrefix),
 		osi:              make(map[string]*cwssaws.OsImage),
+		it:               make(map[string]*cwssaws.InstanceType),
 		identityState:    make(map[string]*identityOrgState),
 		tokenDelegations: make(map[string]*cwssaws.TokenDelegationResponse),
 		powerChecker:     powerChecker,
@@ -710,13 +713,12 @@ func (f *NICoServerImpl) GetAllExpectedMachines(ctx context.Context, req *emptyp
 }
 
 func (f *NICoServerImpl) FindInstanceTypeIds(ctx context.Context, req *cwssaws.FindInstanceTypeIdsRequest) (*cwssaws.FindInstanceTypeIdsResponse, error) {
-	return &cwssaws.FindInstanceTypeIdsResponse{
-		InstanceTypeIds: []string{
-			"dgx-h100-8x",
-			"dgx-h100-4x",
-			"hgx-h100-8x",
-		},
-	}, nil
+	ids := make([]string, 0, len(f.it))
+	for id := range f.it {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return &cwssaws.FindInstanceTypeIdsResponse{InstanceTypeIds: ids}, nil
 }
 
 func (f *NICoServerImpl) AssociateMachinesWithInstanceType(ctx context.Context, req *cwssaws.AssociateMachinesWithInstanceTypeRequest) (*cwssaws.AssociateMachinesWithInstanceTypeResponse, error) {
@@ -725,6 +727,9 @@ func (f *NICoServerImpl) AssociateMachinesWithInstanceType(ctx context.Context, 
 	}
 	if req.InstanceTypeId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "instance_type_id is required")
+	}
+	if _, ok := f.it[req.InstanceTypeId]; !ok {
+		return nil, status.Errorf(codes.NotFound, "InstanceType with ID %q not found", req.InstanceTypeId)
 	}
 	if len(req.MachineIds) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "machine_ids is required")

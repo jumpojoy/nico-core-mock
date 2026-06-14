@@ -56,6 +56,12 @@ libvirt:
   refreshInterval: 30s
   storagePool: default
   volumeGiB: 20
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClassName: ""
+  mountPath: /data
+  stateFile: /data/forge-state.json
 inventory:
     machines:
         - id: 00000000-0000-4000-8000-000000000000

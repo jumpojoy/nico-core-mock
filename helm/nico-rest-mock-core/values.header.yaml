@@ -57,3 +57,11 @@ libvirt:
   storagePool: default
   # Default root volume size when the OS image does not specify capacity.
   volumeGiB: 20
+
+# Persist VPCs, instances, and other runtime Forge state across pod restarts.
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClassName: ""
+  mountPath: /data
+  stateFile: /data/forge-state.json

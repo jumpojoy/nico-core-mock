@@ -42,6 +42,9 @@ spec:
             - --libvirt-storage-pool={{ .Values.libvirt.storagePool }}
             - --libvirt-volume-gib={{ .Values.libvirt.volumeGiB }}
             {{- end }}
+            {{- if .Values.persistence.enabled }}
+            - --state-file={{ .Values.persistence.stateFile }}
+            {{- end }}
           ports:
             - name: grpc
               containerPort: {{ .Values.service.port }}
@@ -62,6 +65,10 @@ spec:
             - name: config
               mountPath: /config
               readOnly: true
+            {{- if .Values.persistence.enabled }}
+            - name: state
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -73,6 +80,11 @@ spec:
         - name: config
           configMap:
             name: {{ include "nico-rest-mock-core.fullname" . }}-config
+        {{- if .Values.persistence.enabled }}
+        - name: state
+          persistentVolumeClaim:
+            claimName: {{ include "nico-rest-mock-core.fullname" . }}-state
+        {{- end }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

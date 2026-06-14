@@ -25,6 +25,7 @@ func main() {
 	libvirtRefreshInterval := flag.Duration("libvirt-refresh-interval", 30*time.Second, "how often to refresh libvirt domain power state")
 	libvirtStoragePool := flag.String("libvirt-storage-pool", "default", "libvirt storage pool used for instance root volumes")
 	libvirtVolumeGiB := flag.Uint("libvirt-volume-gib", 20, "default root volume size in GiB when OS image capacity is unknown")
+	stateFile := flag.String("state-file", "", "path to JSON file for persisting mutable Forge state across restarts")
 	flag.Parse()
 
 	initLogging(resolveLogLevel(*logLevel))
@@ -66,7 +67,7 @@ func main() {
 			Msg("libvirt integration enabled")
 	}
 
-	if err := server.Run(ctx, *listenAddr, inventory, powerChecker, provisioner); err != nil {
+	if err := server.Run(ctx, *listenAddr, inventory, powerChecker, provisioner, *stateFile); err != nil {
 		log.Fatal().Err(err).Msg("gRPC server stopped with error")
 	}
 }
