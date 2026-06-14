@@ -23,6 +23,8 @@ func main() {
 	logLevel := flag.String("log-level", "debug", "log level: trace, debug, info, warn, error")
 	libvirtEndpoint := flag.String("libvirt-endpoint", "", "libvirt URI (e.g. qemu+tcp://host:16509/system); when set, only powered-on domains matching machine id are exposed")
 	libvirtRefreshInterval := flag.Duration("libvirt-refresh-interval", 30*time.Second, "how often to refresh libvirt domain power state")
+	libvirtStoragePool := flag.String("libvirt-storage-pool", "default", "libvirt storage pool used for instance root volumes")
+	libvirtVolumeGiB := flag.Uint("libvirt-volume-gib", 20, "default root volume size in GiB when OS image capacity is unknown")
 	flag.Parse()
 
 	initLogging(resolveLogLevel(*logLevel))
@@ -42,19 +44,29 @@ func main() {
 	defer stop()
 
 	powerChecker := libvirt.PowerChecker(libvirt.NoopChecker{})
+	var provisioner *libvirt.Provisioner
 	if *libvirtEndpoint != "" {
+		libvirtCfg := libvirt.Config{
+			Endpoint:           *libvirtEndpoint,
+			StoragePool:        *libvirtStoragePool,
+			DefaultVolumeBytes: uint64(*libvirtVolumeGiB) << 30,
+		}
+
 		filter, err := libvirt.NewPowerFilter(ctx, *libvirtEndpoint, *libvirtRefreshInterval)
 		if err != nil {
 			log.Fatal().Err(err).Str("endpoint", *libvirtEndpoint).Msg("failed to initialize libvirt power filter")
 		}
 		powerChecker = filter
+		provisioner = libvirt.NewProvisioner(libvirtCfg)
+
 		log.Info().
 			Str("endpoint", *libvirtEndpoint).
 			Dur("refresh_interval", *libvirtRefreshInterval).
-			Msg("libvirt power filtering enabled")
+			Str("storage_pool", libvirtCfg.StoragePool).
+			Msg("libvirt integration enabled")
 	}
 
-	if err := server.Run(ctx, *listenAddr, inventory, powerChecker); err != nil {
+	if err := server.Run(ctx, *listenAddr, inventory, powerChecker, provisioner); err != nil {
 		log.Fatal().Err(err).Msg("gRPC server stopped with error")
 	}
 }

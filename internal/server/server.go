@@ -16,13 +16,13 @@ import (
 var runLogger = log.With().Str("component", "nico-core-mock").Logger()
 
 // Run starts the gRPC server on listenAddr until ctx is cancelled.
-func Run(ctx context.Context, listenAddr string, inventory *config.Inventory, powerChecker libvirtfilter.PowerChecker) error {
+func Run(ctx context.Context, listenAddr string, inventory *config.Inventory, powerChecker libvirtfilter.PowerChecker, provisioner *libvirtfilter.Provisioner) error {
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return err
 	}
 
-	nicoServer := NewFromInventory(inventory, powerChecker)
+	nicoServer := NewFromInventory(inventory, powerChecker, provisioner)
 	srv := grpc.NewServer(grpc.UnaryInterceptor(func(
 		ctx context.Context,
 		req any,
@@ -51,6 +51,7 @@ func Run(ctx context.Context, listenAddr string, inventory *config.Inventory, po
 		Str("addr", listenAddr).
 		Int("machines", len(inventory.Machines)).
 		Bool("libvirt_filter", powerChecker.Enabled()).
+		Bool("libvirt_provision", provisioner != nil && provisioner.Enabled()).
 		Msg("started gRPC server")
 
 	if powerChecker.Enabled() {

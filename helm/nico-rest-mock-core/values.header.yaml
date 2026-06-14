@@ -54,3 +54,6 @@ libvirt:
   # libvirt URI, e.g. qemu+tcp://192.168.122.1:16509/system or qemu+ssh://root@host/system
   endpoint: ""
   refreshInterval: 30s
+  storagePool: default
+  # Default root volume size when the OS image does not specify capacity.
+  volumeGiB: 20

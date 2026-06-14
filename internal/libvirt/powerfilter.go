@@ -3,7 +3,6 @@ package libvirt
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -36,7 +35,7 @@ type PowerFilter struct {
 
 // NewPowerFilter connects to libvirt and periodically refreshes powered-on domains.
 func NewPowerFilter(ctx context.Context, endpoint string, refreshInterval time.Duration) (*PowerFilter, error) {
-	endpoint = sanitizeEndpoint(endpoint)
+	endpoint = SanitizeEndpoint(endpoint)
 	if endpoint == "" {
 		return nil, fmt.Errorf("libvirt endpoint is required")
 	}
@@ -103,14 +102,9 @@ func (f *PowerFilter) refresh() error {
 }
 
 func listPoweredOnDomainIDs(endpoint string) (map[string]struct{}, error) {
-	parsed, err := url.Parse(endpoint)
+	l, err := Connect(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("parse libvirt endpoint %q: %w", endpoint, err)
-	}
-
-	l, err := golibvirt.ConnectToURI(parsed)
-	if err != nil {
-		return nil, fmt.Errorf("connect to libvirt %q: %w", endpoint, err)
+		return nil, err
 	}
 	defer l.Disconnect()
 
@@ -159,9 +153,4 @@ func formatDomainUUID(raw [16]byte) string {
 
 func canonicalMachineID(id string) string {
 	return strings.ToLower(strings.TrimSpace(id))
-}
-
-func sanitizeEndpoint(endpoint string) string {
-	endpoint = strings.TrimSpace(endpoint)
-	return strings.Trim(endpoint, `"'`)
 }

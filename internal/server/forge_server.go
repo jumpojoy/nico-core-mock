@@ -97,6 +97,7 @@ type NICoServerImpl struct {
 	linkedExpectedMachines []*cwssaws.LinkedExpectedMachine
 
 	powerChecker libvirtfilter.PowerChecker
+	provisioner  *libvirtfilter.Provisioner
 }
 
 // identityKeyMaterial is a per-org ES256 keypair plus its derived kid.
@@ -194,7 +195,7 @@ func tenantIdentitySigningKeysResponse(st *identityOrgState) []*cwssaws.TenantId
 var logger = log.With().Str("component", "nico-core-mock").Logger()
 
 // NewFromInventory creates a mock Forge server seeded from YAML inventory.
-func NewFromInventory(inv *config.Inventory, powerChecker libvirtfilter.PowerChecker) *NICoServerImpl {
+func NewFromInventory(inv *config.Inventory, powerChecker libvirtfilter.PowerChecker, provisioner *libvirtfilter.Provisioner) *NICoServerImpl {
 	if powerChecker == nil {
 		powerChecker = libvirtfilter.NoopChecker{}
 	}
@@ -215,6 +216,7 @@ func NewFromInventory(inv *config.Inventory, powerChecker libvirtfilter.PowerChe
 		identityState:    make(map[string]*identityOrgState),
 		tokenDelegations: make(map[string]*cwssaws.TokenDelegationResponse),
 		powerChecker:     powerChecker,
+		provisioner:      provisioner,
 	}
 	srv.loadFromInventory(inv)
 	srv.LoadTestIdentity()
@@ -223,6 +225,80 @@ func NewFromInventory(inv *config.Inventory, powerChecker libvirtfilter.PowerChe
 
 func (f *NICoServerImpl) machineVisible(id string) bool {
 	return f.powerChecker.IsPoweredOn(id)
+}
+
+func (f *NICoServerImpl) osImageSourceURL(config *cwssaws.InstanceConfig) (string, uint64, error) {
+	if config == nil || config.Os == nil {
+		return "", 0, fmt.Errorf("instance config has no operating system")
+	}
+	osImageID := config.Os.GetOsImageId()
+	if osImageID == nil || osImageID.Value == "" {
+		return "", 0, fmt.Errorf("instance config has no os_image_id")
+	}
+	img, ok := f.osi[osImageID.Value]
+	if !ok {
+		return "", 0, fmt.Errorf("os image %q not found", osImageID.Value)
+	}
+	attrs := img.GetAttributes()
+	if attrs == nil || strings.TrimSpace(attrs.GetSourceUrl()) == "" {
+		return "", 0, fmt.Errorf("os image %q has no source_url", osImageID.Value)
+	}
+	return attrs.GetSourceUrl(), attrs.GetCapacity(), nil
+}
+
+func (f *NICoServerImpl) scheduleLibvirtProvision(req *cwssaws.InstanceAllocationRequest) {
+	if f.provisioner == nil || !f.provisioner.Enabled() {
+		return
+	}
+	if req == nil || req.MachineId == nil {
+		return
+	}
+
+	imageURL, capacity, err := f.osImageSourceURL(req.Config)
+	if err != nil {
+		logger.Warn().
+			Err(err).
+			Str("machine_id", req.MachineId.GetId()).
+			Msg("skipping libvirt provisioning: no usable os image")
+		return
+	}
+
+	machineID := req.MachineId.GetId()
+	go func() {
+		ctx := context.Background()
+		if err := f.provisioner.ProvisionMachine(ctx, libvirtfilter.ProvisionRequest{
+			MachineID:          machineID,
+			ImageURL:           imageURL,
+			ImageCapacityBytes: capacity,
+		}); err != nil {
+			logger.Error().
+				Err(err).
+				Str("machine_id", machineID).
+				Str("image_url", imageURL).
+				Msg("libvirt provisioning failed")
+			return
+		}
+		logger.Info().Str("machine_id", machineID).Msg("libvirt provisioning succeeded")
+	}()
+}
+
+func (f *NICoServerImpl) scheduleLibvirtRelease(instance *cwssaws.Instance) {
+	if f.provisioner == nil || !f.provisioner.Enabled() {
+		return
+	}
+	if instance == nil || instance.MachineId == nil {
+		return
+	}
+
+	machineID := instance.MachineId.GetId()
+	go func() {
+		if err := f.provisioner.ReleaseMachine(context.Background(), machineID); err != nil {
+			logger.Error().
+				Err(err).
+				Str("machine_id", machineID).
+				Msg("libvirt release failed")
+		}
+	}()
 }
 
 func (f *NICoServerImpl) visibleMachineIDs() []string {
@@ -510,6 +586,8 @@ func (f *NICoServerImpl) AllocateInstance(ctx context.Context, req *cwssaws.Inst
 			mockdata.EnsureMachineDiscoveryInfo(f.m[req.MachineId.Id])
 		}
 
+		f.scheduleLibvirtProvision(req)
+
 		return &nins, nil
 	}
 
@@ -524,7 +602,9 @@ func (f *NICoServerImpl) ReleaseInstance(c context.Context, req *cwssaws.Instanc
 
 	_, ok := f.ins[req.Id.Value]
 	if ok {
+		instance := f.ins[req.Id.Value]
 		delete(f.ins, req.Id.Value)
+		f.scheduleLibvirtRelease(instance)
 		return &cwssaws.InstanceReleaseResult{}, nil
 	}
 
