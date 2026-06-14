@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
-
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
@@ -21,8 +19,7 @@ func main() {
 	configPath := flag.String("config", "/config/machines.yaml", "path to machines YAML file")
 	listenAddr := flag.String("listen", ":11079", "gRPC listen address")
 	logLevel := flag.String("log-level", "debug", "log level: trace, debug, info, warn, error")
-	libvirtEndpoint := flag.String("libvirt-endpoint", "", "libvirt URI (e.g. qemu+tcp://host:16509/system); when set, only powered-on domains matching machine id are exposed")
-	libvirtRefreshInterval := flag.Duration("libvirt-refresh-interval", 30*time.Second, "how often to refresh libvirt domain power state")
+	libvirtEndpoint := flag.String("libvirt-endpoint", "", "libvirt URI (e.g. qemu+tcp://host:16509/system); when set, only inventory machines with a matching libvirt domain are exposed")
 	libvirtStoragePool := flag.String("libvirt-storage-pool", "default", "libvirt storage pool used for instance root volumes")
 	libvirtVolumeGiB := flag.Uint("libvirt-volume-gib", 20, "default root volume size in GiB when OS image capacity is unknown")
 	stateFile := flag.String("state-file", "", "path to JSON file for persisting mutable Forge state across restarts")
@@ -53,7 +50,7 @@ func main() {
 			DefaultVolumeBytes: uint64(*libvirtVolumeGiB) << 30,
 		}
 
-		filter, err := libvirt.NewPowerFilter(ctx, *libvirtEndpoint, *libvirtRefreshInterval)
+		filter, err := libvirt.NewPowerFilter(*libvirtEndpoint)
 		if err != nil {
 			log.Fatal().Err(err).Str("endpoint", *libvirtEndpoint).Msg("failed to initialize libvirt power filter")
 		}
@@ -62,7 +59,6 @@ func main() {
 
 		log.Info().
 			Str("endpoint", *libvirtEndpoint).
-			Dur("refresh_interval", *libvirtRefreshInterval).
 			Str("storage_pool", libvirtCfg.StoragePool).
 			Msg("libvirt integration enabled")
 	}

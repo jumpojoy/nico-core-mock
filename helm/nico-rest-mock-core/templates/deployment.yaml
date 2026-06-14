@@ -38,7 +38,6 @@ spec:
             - --log-level={{ .Values.logLevel }}
             {{- if .Values.libvirt.enabled }}
             - --libvirt-endpoint={{ .Values.libvirt.endpoint }}
-            - --libvirt-refresh-interval={{ .Values.libvirt.refreshInterval }}
             - --libvirt-storage-pool={{ .Values.libvirt.storagePool }}
             - --libvirt-volume-gib={{ .Values.libvirt.volumeGiB }}
             {{- end }}

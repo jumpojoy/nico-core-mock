@@ -6,4 +6,4 @@
 2. The Forge gRPC server listens on port {{ .Values.service.port }}.
 
 3. Edit mock hosts in Helm values key `inventory` (`helm/nico-rest-mock-core/values.yaml`).
-4. When `libvirt.enabled` is true, only machines whose `id` matches a powered-on libvirt domain are returned.
+4. When `libvirt.enabled` is true, only machines whose `id` matches an existing libvirt domain are returned.
