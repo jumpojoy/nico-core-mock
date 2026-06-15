@@ -65,3 +65,4 @@ persistence:
   mountPath: /data
   stateFile: /data/forge-state.json
   imageCacheDir: /data/os-image-cache
+  tempDir: /data/tmp

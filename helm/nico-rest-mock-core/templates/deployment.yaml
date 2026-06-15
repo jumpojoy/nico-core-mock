@@ -44,6 +44,7 @@ spec:
             {{- if .Values.persistence.enabled }}
             - --state-file={{ .Values.persistence.stateFile }}
             - --image-cache-dir={{ .Values.persistence.imageCacheDir }}
+            - --temp-dir={{ .Values.persistence.tempDir }}
             {{- end }}
           ports:
             - name: grpc

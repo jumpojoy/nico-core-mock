@@ -27,9 +27,16 @@ func main() {
 	libvirtVolumeGiB := flag.Uint("libvirt-volume-gib", 20, "default root volume size in GiB when OS image capacity is unknown")
 	stateFile := flag.String("state-file", "", "path to JSON file for persisting mutable Forge state across restarts")
 	imageCacheDir := flag.String("image-cache-dir", "", "directory for cached OS images; defaults to <state-file-dir>/os-image-cache when state-file is set")
+	tempDir := flag.String("temp-dir", "", "writable directory for temporary files; defaults to <state-file-dir>/tmp when state-file is set")
 	flag.Parse()
 
 	initLogging(resolveLogLevel(*logLevel))
+
+	if tempDirPath, err := libvirt.ConfigureWritableTempDir(*tempDir, *stateFile); err != nil {
+		log.Fatal().Err(err).Msg("failed to configure writable temp directory")
+	} else if tempDirPath != "" {
+		log.Info().Str("temp_dir", tempDirPath).Msg("configured writable temp directory")
+	}
 
 	inventory, err := config.Load(*configPath)
 	if err != nil {

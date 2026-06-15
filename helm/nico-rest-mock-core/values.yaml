@@ -62,6 +62,7 @@ persistence:
   mountPath: /data
   stateFile: /data/forge-state.json
   imageCacheDir: /data/os-image-cache
+  tempDir: /data/tmp
 inventory:
     machines:
         - id: 00000000-0000-4000-8000-000000000000
