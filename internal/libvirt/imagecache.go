@@ -167,7 +167,7 @@ func openImageHTTP(ctx context.Context, imageURL string) (int64, io.ReadCloser, 
 }
 
 func downloadImageToWriter(ctx context.Context, imageURL string, writer io.Writer) (int64, error) {
-	size, body, err := openImageHTTP(ctx, imageURL)
+	_, body, err := openImageHTTP(ctx, imageURL)
 	if err != nil {
 		return 0, err
 	}

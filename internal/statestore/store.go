@@ -25,8 +25,9 @@ type Snapshot struct {
 	Instances       []*cwssaws.Instance         `json:"instances,omitempty"`
 	Machines        []*cwssaws.Machine          `json:"machines,omitempty"`
 	VpcPrefixes     []*cwssaws.VpcPrefix        `json:"vpc_prefixes,omitempty"`
-	OsImages        []*cwssaws.OsImage          `json:"os_images,omitempty"`
-	InstanceTypes   []*cwssaws.InstanceType     `json:"instance_types,omitempty"`
+	OsImages          []*cwssaws.OsImage          `json:"os_images,omitempty"`
+	OperatingSystems  []*cwssaws.OperatingSystem  `json:"operating_systems,omitempty"`
+	InstanceTypes     []*cwssaws.InstanceType     `json:"instance_types,omitempty"`
 }
 
 type snapshotWire struct {
@@ -36,8 +37,9 @@ type snapshotWire struct {
 	Instances       []json.RawMessage `json:"instances,omitempty"`
 	Machines        []json.RawMessage `json:"machines,omitempty"`
 	VpcPrefixes     []json.RawMessage `json:"vpc_prefixes,omitempty"`
-	OsImages        []json.RawMessage `json:"os_images,omitempty"`
-	InstanceTypes   []json.RawMessage `json:"instance_types,omitempty"`
+	OsImages          []json.RawMessage `json:"os_images,omitempty"`
+	OperatingSystems  []json.RawMessage `json:"operating_systems,omitempty"`
+	InstanceTypes     []json.RawMessage `json:"instance_types,omitempty"`
 }
 
 var protoJSON = protojson.MarshalOptions{
@@ -104,20 +106,25 @@ func snapshotToWire(snap *Snapshot) (*snapshotWire, error) {
 	if err != nil {
 		return nil, fmt.Errorf("marshal os_images: %w", err)
 	}
+	operatingSystems, err := marshalProtoSlice(snap.OperatingSystems)
+	if err != nil {
+		return nil, fmt.Errorf("marshal operating_systems: %w", err)
+	}
 	instanceTypes, err := marshalProtoSlice(snap.InstanceTypes)
 	if err != nil {
 		return nil, fmt.Errorf("marshal instance_types: %w", err)
 	}
 
 	return &snapshotWire{
-		Version:         snap.Version,
-		Vpcs:            vpcs,
-		NetworkSegments: networkSegments,
-		Instances:       instances,
-		Machines:        machines,
-		VpcPrefixes:     vpcPrefixes,
-		OsImages:        osImages,
-		InstanceTypes:   instanceTypes,
+		Version:          snap.Version,
+		Vpcs:             vpcs,
+		NetworkSegments:  networkSegments,
+		Instances:        instances,
+		Machines:         machines,
+		VpcPrefixes:      vpcPrefixes,
+		OsImages:           osImages,
+		OperatingSystems: operatingSystems,
+		InstanceTypes:      instanceTypes,
 	}, nil
 }
 
@@ -146,20 +153,25 @@ func wireToSnapshot(wire *snapshotWire) (*Snapshot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal os_images: %w", err)
 	}
+	operatingSystems, err := unmarshalProtoSlice(wire.OperatingSystems, func() *cwssaws.OperatingSystem { return &cwssaws.OperatingSystem{} })
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal operating_systems: %w", err)
+	}
 	instanceTypes, err := unmarshalProtoSlice(wire.InstanceTypes, func() *cwssaws.InstanceType { return &cwssaws.InstanceType{} })
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal instance_types: %w", err)
 	}
 
 	return &Snapshot{
-		Version:         wire.Version,
-		Vpcs:            vpcs,
-		NetworkSegments: networkSegments,
-		Instances:       instances,
-		Machines:        machines,
-		VpcPrefixes:     vpcPrefixes,
-		OsImages:        osImages,
-		InstanceTypes:   instanceTypes,
+		Version:          wire.Version,
+		Vpcs:             vpcs,
+		NetworkSegments:  networkSegments,
+		Instances:        instances,
+		Machines:         machines,
+		VpcPrefixes:      vpcPrefixes,
+		OsImages:           osImages,
+		OperatingSystems: operatingSystems,
+		InstanceTypes:      instanceTypes,
 	}, nil
 }
 

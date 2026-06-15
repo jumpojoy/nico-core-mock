@@ -45,6 +45,12 @@ func (f *NICoServerImpl) applySnapshot(snap *statestore.Snapshot) {
 		}
 		f.osi[image.GetAttributes().GetId().GetValue()] = image
 	}
+	for _, os := range snap.OperatingSystems {
+		if os.GetId() == nil || os.GetId().GetValue() == "" {
+			continue
+		}
+		f.oss[os.GetId().GetValue()] = os
+	}
 	for _, it := range snap.InstanceTypes {
 		if it.GetId() == "" {
 			continue
@@ -61,8 +67,9 @@ func (f *NICoServerImpl) exportSnapshot() *statestore.Snapshot {
 		Instances:       mapValues(f.ins),
 		Machines:        mapValues(f.m),
 		VpcPrefixes:     mapValues(f.vp),
-		OsImages:        mapValues(f.osi),
-		InstanceTypes:   mapValues(f.it),
+		OsImages:         mapValues(f.osi),
+		OperatingSystems: mapValues(f.oss),
+		InstanceTypes:    mapValues(f.it),
 	}
 }
 

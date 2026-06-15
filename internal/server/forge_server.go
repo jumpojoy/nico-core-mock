@@ -88,6 +88,7 @@ type NICoServerImpl struct {
 	tt  map[string]*cwssaws.Tenant
 	vp  map[string]*cwssaws.VpcPrefix
 	osi map[string]*cwssaws.OsImage
+	oss map[string]*cwssaws.OperatingSystem
 	it  map[string]*cwssaws.InstanceType
 
 	// Per-org machine identity state.
@@ -215,6 +216,7 @@ func NewFromInventory(inv *config.Inventory, powerChecker libvirtfilter.PowerChe
 		tt:               make(map[string]*cwssaws.Tenant),
 		vp:               make(map[string]*cwssaws.VpcPrefix),
 		osi:              make(map[string]*cwssaws.OsImage),
+		oss:              make(map[string]*cwssaws.OperatingSystem),
 		it:               make(map[string]*cwssaws.InstanceType),
 		identityState:    make(map[string]*identityOrgState),
 		tokenDelegations: make(map[string]*cwssaws.TokenDelegationResponse),
@@ -280,10 +282,7 @@ func (f *NICoServerImpl) scheduleLibvirtProvision(req *cwssaws.InstanceAllocatio
 	if req.InstanceId != nil && req.InstanceId.Value != "" {
 		instanceID = req.InstanceId.Value
 	}
-	userData := ""
-	if req.Config != nil && req.Config.Os != nil {
-		userData = req.Config.Os.GetUserData()
-	}
+	userData := f.resolveUserData(req.Config)
 
 	go func() {
 		ctx := context.Background()
@@ -1132,6 +1131,7 @@ func (f *NICoServerImpl) CreateOsImage(ctx context.Context, req *cwssaws.OsImage
 		Status:     cwssaws.OsImageStatus_ImageReady,
 	}
 	f.osi[nid] = img
+	f.ensureOperatingSystemStub(nid, req)
 	return img, nil
 }
 
@@ -1145,6 +1145,7 @@ func (f *NICoServerImpl) UpdateOsImage(ctx context.Context, req *cwssaws.OsImage
 		return nil, status.Errorf(codes.NotFound, "OsImage with ID %q not found", req.Id.Value)
 	}
 	img.Attributes = req
+	f.ensureOperatingSystemStub(req.Id.Value, req)
 	return img, nil
 }
 
@@ -1157,6 +1158,7 @@ func (f *NICoServerImpl) DeleteOsImage(ctx context.Context, req *cwssaws.DeleteO
 		return nil, status.Errorf(codes.NotFound, "OsImage with ID %q not found", req.Id.Value)
 	}
 	delete(f.osi, req.Id.Value)
+	delete(f.oss, req.Id.Value)
 	return &cwssaws.DeleteOsImageResponse{}, nil
 }
 
