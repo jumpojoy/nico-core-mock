@@ -47,18 +47,20 @@ func updateDomainConfigDrive(l *golibvirt.Libvirt, domain golibvirt.Domain, pool
 }
 
 func patchDomainConfigDriveXML(xmlDesc, poolName, volName string) (string, error) {
+	targetDev, targetBus := resolveConfigDriveTarget(xmlDesc, volName)
+
 	matches := domainDiskPattern.FindAllStringSubmatchIndex(xmlDesc, -1)
 	selected := findConfigDriveDiskIndex(matches, xmlDesc, volName)
 	if selected >= 0 {
 		loc := matches[selected]
-		updatedBlock, err := patchConfigDriveBlock(xmlDesc[loc[0]:loc[1]], poolName, volName)
+		updatedBlock, err := patchConfigDriveBlock(xmlDesc[loc[0]:loc[1]], poolName, volName, targetDev, targetBus)
 		if err != nil {
 			return "", err
 		}
 		return xmlDesc[:loc[0]] + updatedBlock + xmlDesc[loc[1]:], nil
 	}
 
-	return insertConfigDriveDisk(xmlDesc, poolName, volName)
+	return insertConfigDriveDisk(xmlDesc, poolName, volName, targetDev, targetBus)
 }
 
 func findConfigDriveDiskIndex(matches [][]int, xmlDesc, volName string) int {
@@ -85,7 +87,7 @@ func isCDROMDisk(diskXML string) bool {
 	return strings.EqualFold(attributeValue(diskXML, "device"), "cdrom")
 }
 
-func patchConfigDriveBlock(diskXML, poolName, volName string) (string, error) {
+func patchConfigDriveBlock(diskXML, poolName, volName, targetDev, targetBus string) (string, error) {
 	openTagPattern := regexp.MustCompile(`(?s)^(<disk\b[^>]*>)`)
 	match := openTagPattern.FindStringSubmatch(diskXML)
 	if len(match) != 2 {
@@ -97,6 +99,7 @@ func patchConfigDriveBlock(diskXML, poolName, volName string) (string, error) {
 	updated := openTag + diskXML[len(match[1]):]
 	updated = replaceOrInsertDriver(updated, "raw")
 	updated = replaceOrInsertSource(updated, "", poolName, volName)
+	updated = replaceOrInsertTarget(updated, targetDev, targetBus)
 	updated = ensureReadonlyDisk(updated)
 	return updated, nil
 }
@@ -119,22 +122,148 @@ func ensureReadonlyDisk(diskXML string) string {
 	return diskXML
 }
 
-func insertConfigDriveDisk(xmlDesc, poolName, volName string) (string, error) {
+func insertConfigDriveDisk(xmlDesc, poolName, volName, targetDev, targetBus string) (string, error) {
 	idx := strings.LastIndex(xmlDesc, "</devices>")
 	if idx < 0 {
 		return "", fmt.Errorf("domain xml has no devices section")
 	}
-	block := configDriveDiskBlock(poolName, volName)
+	block := configDriveDiskBlock(poolName, volName, targetDev, targetBus)
 	return xmlDesc[:idx] + block + "\n" + xmlDesc[idx:], nil
 }
 
-func configDriveDiskBlock(poolName, volName string) string {
+func configDriveDiskBlock(poolName, volName, targetDev, targetBus string) string {
 	return fmt.Sprintf(`    <disk type='volume' device='cdrom'>
       <driver name='qemu' type='raw'/>
       <source pool='%s' volume='%s'/>
-      <target dev='hdb' bus='ide'/>
+      <target dev='%s' bus='%s'/>
       <readonly/>
-    </disk>`, xmlAttr(poolName), xmlAttr(volName))
+    </disk>`, xmlAttr(poolName), xmlAttr(volName), xmlAttr(targetDev), xmlAttr(targetBus))
+}
+
+func resolveConfigDriveTarget(xmlDesc, volName string) (dev, bus string) {
+	matches := domainDiskPattern.FindAllString(xmlDesc, -1)
+
+	var existingCDROM string
+	for _, block := range matches {
+		if !isCDROMDisk(block) {
+			continue
+		}
+		if volName != "" && strings.Contains(block, volName) {
+			existingCDROM = block
+			break
+		}
+		if existingCDROM == "" {
+			existingCDROM = block
+		}
+	}
+
+	preferredBus := preferredCDROMBus(xmlDesc)
+	usedDevs := collectUsedTargetDevs(xmlDesc)
+
+	if existingCDROM != "" {
+		curDev := diskTargetDev(existingCDROM)
+		curBus := diskTargetBus(existingCDROM)
+		if curBus != "" && strings.EqualFold(curBus, preferredBus) && curDev != "" {
+			return curDev, curBus
+		}
+		return nextTargetDev(preferredBus, usedDevs), preferredBus
+	}
+
+	return nextTargetDev(preferredBus, usedDevs), preferredBus
+}
+
+func preferredCDROMBus(xmlDesc string) string {
+	if strings.Contains(xmlDesc, `machine='q35'`) || strings.Contains(xmlDesc, `machine="q35"`) {
+		return "sata"
+	}
+
+	matches := domainDiskPattern.FindAllString(xmlDesc, -1)
+	hasVirtio := false
+	hasSata := false
+	hasIDE := false
+	for _, block := range matches {
+		if isCDROMDisk(block) {
+			continue
+		}
+		switch strings.ToLower(diskTargetBus(block)) {
+		case "virtio":
+			hasVirtio = true
+		case "sata":
+			hasSata = true
+		case "ide":
+			hasIDE = true
+		}
+	}
+
+	if hasVirtio || hasSata {
+		return "sata"
+	}
+	if hasIDE {
+		return "ide"
+	}
+	return "sata"
+}
+
+func collectUsedTargetDevs(xmlDesc string) map[string]struct{} {
+	used := make(map[string]struct{})
+	for _, block := range domainDiskPattern.FindAllString(xmlDesc, -1) {
+		if dev := diskTargetDev(block); dev != "" {
+			used[strings.ToLower(dev)] = struct{}{}
+		}
+	}
+	return used
+}
+
+func nextTargetDev(bus string, used map[string]struct{}) string {
+	var candidates []string
+	switch strings.ToLower(bus) {
+	case "ide":
+		candidates = []string{"hda", "hdb", "hdc", "hdd"}
+	default:
+		candidates = []string{"sda", "sdb", "sdc", "sdd", "sde", "sdf"}
+	}
+	for _, candidate := range candidates {
+		if _, ok := used[candidate]; !ok {
+			return candidate
+		}
+	}
+	return candidates[0]
+}
+
+func diskTargetDev(diskXML string) string {
+	match := regexp.MustCompile(`(?s)<target\b[^>]*\bdev=['"]([^'"]+)['"]`).FindStringSubmatch(diskXML)
+	if len(match) == 2 {
+		return match[1]
+	}
+	return ""
+}
+
+func diskTargetBus(diskXML string) string {
+	match := regexp.MustCompile(`(?s)<target\b[^>]*\bbus=['"]([^'"]+)['"]`).FindStringSubmatch(diskXML)
+	if len(match) == 2 {
+		return match[1]
+	}
+	return ""
+}
+
+func replaceOrInsertTarget(diskXML, dev, bus string) string {
+	targetPattern := regexp.MustCompile(`(?s)<target\b[^>]*/>`)
+	replacement := fmt.Sprintf(`<target dev='%s' bus='%s'/>`, xmlAttr(dev), xmlAttr(bus))
+	if targetPattern.MatchString(diskXML) {
+		return targetPattern.ReplaceAllString(diskXML, replacement)
+	}
+
+	sourcePattern := regexp.MustCompile(`(?s)<source\b[^>]*/>`)
+	if loc := sourcePattern.FindStringIndex(diskXML); loc != nil {
+		return diskXML[:loc[1]] + "\n      " + replacement + diskXML[loc[1]:]
+	}
+
+	openTag := regexp.MustCompile(`(?s)^(<disk\b[^>]*>)`).FindStringSubmatch(diskXML)
+	if len(openTag) == 2 {
+		return openTag[1] + "\n      " + replacement + diskXML[len(openTag[1]):]
+	}
+
+	return diskXML
 }
 
 var domainDiskPattern = regexp.MustCompile(`(?s)<disk\b[^>]*>.*?</disk>`)

@@ -116,6 +116,7 @@ func TestPatchDomainConfigDriveXMLInsertsCDROM(t *testing.T) {
 		`device='cdrom'`,
 		`pool='default'`,
 		`volume='machine-config'`,
+		`bus='sata'`,
 		`<readonly/>`,
 	} {
 		if !strings.Contains(updated, want) {
@@ -140,6 +141,38 @@ func TestPatchDomainConfigDriveXMLUpdatesExistingCDROM(t *testing.T) {
 	}
 	if strings.Contains(updated, "old-config.iso") {
 		t.Fatalf("expected cdrom source to be replaced:\n%s", updated)
+	}
+	if !strings.Contains(updated, `volume='machine-config'`) {
+		t.Fatalf("expected config volume attached:\n%s", updated)
+	}
+}
+
+func TestPatchDomainConfigDriveXMLUsesSATAWithVirtioBootDisk(t *testing.T) {
+	const domainXML = `<domain type='kvm'>
+  <os>
+    <type machine='q35'>hvm</type>
+  </os>
+  <devices>
+    <disk type='file' device='disk'>
+      <source file='/root.qcow2'/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+    <disk type='file' device='cdrom'>
+      <source file='/old-config.iso'/>
+      <target dev='hda' bus='ide'/>
+    </disk>
+  </devices>
+</domain>`
+
+	updated, err := patchDomainConfigDriveXML(domainXML, "default", "machine-config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(updated, `bus='ide'`) {
+		t.Fatalf("expected ide cdrom bus to be upgraded:\n%s", updated)
+	}
+	if !strings.Contains(updated, `bus='sata'`) {
+		t.Fatalf("expected sata cdrom bus:\n%s", updated)
 	}
 	if !strings.Contains(updated, `volume='machine-config'`) {
 		t.Fatalf("expected config volume attached:\n%s", updated)
