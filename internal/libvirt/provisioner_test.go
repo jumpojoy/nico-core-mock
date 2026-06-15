@@ -39,13 +39,23 @@ func TestImageFormatFromURL(t *testing.T) {
 }
 
 func TestVolumeCapacity(t *testing.T) {
-	got := volumeCapacity(5<<30, 30<<30, 20<<30)
+	got := rootVolumeCapacity(500<<20, 0, 20<<30)
+	if got != 20<<30 {
+		t.Fatalf("expected 20 GiB minimum root volume, got %d", got)
+	}
+
+	got = volumeCapacity(5<<30, 30<<30, 20<<30)
 	if got != 30<<30 {
 		t.Fatalf("expected image capacity to win over default, got %d", got)
 	}
 	got = volumeCapacity(25<<30, 10<<30, 20<<30)
 	if got != 25<<30 {
 		t.Fatalf("expected downloaded size to win, got %d", got)
+	}
+
+	got = rootVolumeCapacity(0, 0, 0)
+	if got != defaultVolumeBytes {
+		t.Fatalf("expected built-in default volume size, got %d", got)
 	}
 }
 
@@ -68,5 +78,14 @@ func TestNewProvisionerDefaults(t *testing.T) {
 	}
 	if p.cfg.DefaultVolumeBytes != defaultVolumeBytes {
 		t.Fatalf("default volume bytes = %d, want %d", p.cfg.DefaultVolumeBytes, defaultVolumeBytes)
+	}
+}
+
+func TestStorageVolResizeFlags(t *testing.T) {
+	if got := storageVolResizeFlags("raw"); got != 1 {
+		t.Fatalf("raw resize flags = %d, want StorageVolResizeAllocate (1)", got)
+	}
+	if got := storageVolResizeFlags("qcow2"); got != 0 {
+		t.Fatalf("qcow2 resize flags = %d, want 0", got)
 	}
 }

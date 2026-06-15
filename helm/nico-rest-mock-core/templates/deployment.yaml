@@ -39,7 +39,7 @@ spec:
             {{- if .Values.libvirt.enabled }}
             - --libvirt-endpoint={{ .Values.libvirt.endpoint }}
             - --libvirt-storage-pool={{ .Values.libvirt.storagePool }}
-            - --libvirt-volume-gib={{ .Values.libvirt.volumeGiB }}
+            - --libvirt-volume-gib={{ include "nico-rest-mock-core.libvirtVolumeGiB" . }}
             {{- end }}
             {{- if .Values.persistence.enabled }}
             - --state-file={{ .Values.persistence.stateFile }}

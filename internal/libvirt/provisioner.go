@@ -95,7 +95,7 @@ func (p *Provisioner) ProvisionMachine(ctx context.Context, req ProvisionRequest
 	}
 	defer body.Close()
 
-	volCapacity := volumeCapacity(imageSize, req.ImageCapacityBytes, p.cfg.DefaultVolumeBytes)
+	volCapacity := rootVolumeCapacity(imageSize, req.ImageCapacityBytes, p.cfg.DefaultVolumeBytes)
 	vol, err := createVolume(l, pool, volName, volCapacity, imageFormat)
 	if err != nil {
 		return err
@@ -105,6 +105,18 @@ func (p *Provisioner) ProvisionMachine(ctx context.Context, req ProvisionRequest
 		_ = l.StorageVolDelete(vol, 0)
 		return fmt.Errorf("upload image to volume %q: %w", volName, err)
 	}
+
+	if err := expandRootVolume(l, vol, volCapacity, imageFormat); err != nil {
+		_ = l.StorageVolDelete(vol, 0)
+		return fmt.Errorf("expand root volume %q to %d bytes: %w", volName, volCapacity, err)
+	}
+
+	log.Info().
+		Str("machine_id", machineID).
+		Str("volume", volName).
+		Uint64("capacity_bytes", volCapacity).
+		Str("format", imageFormat).
+		Msg("created root volume")
 
 	volPath, err := l.StorageVolGetPath(vol)
 	if err != nil {
@@ -273,7 +285,11 @@ func createVolume(l *golibvirt.Libvirt, pool golibvirt.StoragePool, name string,
 	return vol, nil
 }
 
-func volumeCapacity(imageSize int64, imageCapacityBytes, defaultBytes uint64) uint64 {
+func rootVolumeCapacity(imageSize int64, imageCapacityBytes, defaultBytes uint64) uint64 {
+	if defaultBytes == 0 {
+		defaultBytes = defaultVolumeBytes
+	}
+
 	capacity := defaultBytes
 	if imageCapacityBytes > capacity {
 		capacity = imageCapacityBytes
@@ -282,6 +298,35 @@ func volumeCapacity(imageSize int64, imageCapacityBytes, defaultBytes uint64) ui
 		capacity = uint64(imageSize)
 	}
 	return capacity
+}
+
+func expandRootVolume(l *golibvirt.Libvirt, vol golibvirt.StorageVol, capacity uint64, format string) error {
+	if capacity == 0 {
+		return nil
+	}
+	switch format {
+	case "qcow2", "raw":
+	default:
+		return nil
+	}
+	flags := storageVolResizeFlags(format)
+	if err := l.StorageVolResize(vol, capacity, flags); err != nil {
+		return err
+	}
+	return nil
+}
+
+// storageVolResizeFlags returns libvirt resize flags appropriate for the volume format.
+// Preallocation (StorageVolResizeAllocate) is only supported for raw volumes.
+func storageVolResizeFlags(format string) golibvirt.StorageVolResizeFlags {
+	if format == "raw" {
+		return golibvirt.StorageVolResizeAllocate
+	}
+	return 0
+}
+
+func volumeCapacity(imageSize int64, imageCapacityBytes, defaultBytes uint64) uint64 {
+	return rootVolumeCapacity(imageSize, imageCapacityBytes, defaultBytes)
 }
 
 func volumeName(machineID string) string {

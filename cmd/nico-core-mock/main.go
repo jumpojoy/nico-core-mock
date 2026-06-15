@@ -77,6 +77,7 @@ func main() {
 		log.Info().
 			Str("endpoint", *libvirtEndpoint).
 			Str("storage_pool", libvirtCfg.StoragePool).
+			Uint64("root_volume_gib", uint64(*libvirtVolumeGiB)).
 			Str("image_cache_dir", libvirtCfg.ImageCacheDir).
 			Msg("libvirt integration enabled")
 	}

@@ -58,3 +58,10 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Default libvirt root volume size in GiB (used when OS image capacity is unknown).
+*/}}
+{{- define "nico-rest-mock-core.libvirtVolumeGiB" -}}
+{{- default 20 .Values.libvirt.volumeGiB }}
+{{- end }}
