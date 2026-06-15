@@ -48,6 +48,8 @@ var (
 	DefaultTenantKeysetId = "00000000-0000-4000-a000-000000000000"
 	// DefaultIBParitionId is the default IBPartition ID for testing
 	DefaultIBParitionId = "00000000-0000-4000-b000-000000000000"
+	// DefaultNVLinkLogicalPartitionId is the default NVLink Logical Partition ID for testing
+	DefaultNVLinkLogicalPartitionId = "00000000-0000-4000-c000-000000000000"
 	// DefaultTenantOrganizationId is the default TenantOrganization ID for testing
 	DefaultTenantOrganizationId = "00000000-0000-4000-d000-000000000000"
 	// DefaultSkuId is the default Sku ID for testing
@@ -74,22 +76,23 @@ var (
 // without releasing the lock first.
 type NICoServerImpl struct {
 	cwssaws.UnimplementedForgeServer
-	mu  sync.Mutex
-	v   map[string]*cwssaws.Vpc
-	ns  map[string]*cwssaws.NetworkSegment
-	ins map[string]*cwssaws.Instance
-	m   map[string]*cwssaws.Machine
-	tk  map[string]*cwssaws.TenantKeyset
-	ibp map[string]*cwssaws.IBPartition
-	em  map[string]*cwssaws.ExpectedMachine
-	eps map[string]*cwssaws.ExpectedPowerShelf
-	es  map[string]*cwssaws.ExpectedSwitch
-	er  map[string]*cwssaws.ExpectedRack
-	tt  map[string]*cwssaws.Tenant
-	vp  map[string]*cwssaws.VpcPrefix
-	osi map[string]*cwssaws.OsImage
-	oss map[string]*cwssaws.OperatingSystem
-	it  map[string]*cwssaws.InstanceType
+	mu   sync.Mutex
+	v    map[string]*cwssaws.Vpc
+	ns   map[string]*cwssaws.NetworkSegment
+	ins  map[string]*cwssaws.Instance
+	m    map[string]*cwssaws.Machine
+	tk   map[string]*cwssaws.TenantKeyset
+	ibp  map[string]*cwssaws.IBPartition
+	nvlp map[string]*cwssaws.NVLinkLogicalPartition
+	em   map[string]*cwssaws.ExpectedMachine
+	eps  map[string]*cwssaws.ExpectedPowerShelf
+	es   map[string]*cwssaws.ExpectedSwitch
+	er   map[string]*cwssaws.ExpectedRack
+	tt   map[string]*cwssaws.Tenant
+	vp   map[string]*cwssaws.VpcPrefix
+	osi  map[string]*cwssaws.OsImage
+	oss  map[string]*cwssaws.OperatingSystem
+	it   map[string]*cwssaws.InstanceType
 
 	// Per-org machine identity state.
 	identityState    map[string]*identityOrgState
@@ -209,6 +212,7 @@ func NewFromInventory(inv *config.Inventory, powerChecker libvirtfilter.PowerChe
 		m:                make(map[string]*cwssaws.Machine),
 		tk:               make(map[string]*cwssaws.TenantKeyset),
 		ibp:              make(map[string]*cwssaws.IBPartition),
+		nvlp:             make(map[string]*cwssaws.NVLinkLogicalPartition),
 		em:               make(map[string]*cwssaws.ExpectedMachine),
 		eps:              make(map[string]*cwssaws.ExpectedPowerShelf),
 		es:               make(map[string]*cwssaws.ExpectedSwitch),
@@ -772,11 +776,96 @@ func (f *NICoServerImpl) RemoveMachineInstanceTypeAssociation(ctx context.Contex
 }
 
 func (f *NICoServerImpl) FindNVLinkLogicalPartitionIds(ctx context.Context, req *cwssaws.NVLinkLogicalPartitionSearchFilter) (*cwssaws.NVLinkLogicalPartitionIdList, error) {
-	return &cwssaws.NVLinkLogicalPartitionIdList{
-		PartitionIds: []*cwssaws.NVLinkLogicalPartitionId{
-			{Value: "00000000-0000-4000-c000-000000000000"},
+	response := cwssaws.NVLinkLogicalPartitionIdList{}
+	for id := range f.nvlp {
+		response.PartitionIds = append(response.PartitionIds, &cwssaws.NVLinkLogicalPartitionId{Value: id})
+	}
+	return &response, nil
+}
+
+func (f *NICoServerImpl) FindNVLinkLogicalPartitionsByIds(ctx context.Context, req *cwssaws.NVLinkLogicalPartitionsByIdsRequest) (*cwssaws.NVLinkLogicalPartitionList, error) {
+	if req == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid request argument")
+	}
+	response := cwssaws.NVLinkLogicalPartitionList{}
+	for _, id := range req.PartitionIds {
+		if obj, ok := f.nvlp[id.GetValue()]; ok {
+			response.Partitions = append(response.Partitions, obj)
+		}
+	}
+	return &response, nil
+}
+
+// CreateNVLinkLogicalPartition implements interface NICoServer
+func (f *NICoServerImpl) CreateNVLinkLogicalPartition(ctx context.Context, req *cwssaws.NVLinkLogicalPartitionCreationRequest) (*cwssaws.NVLinkLogicalPartition, error) {
+	if req == nil || req.Config == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid request argument")
+	}
+
+	nid := DefaultNVLinkLogicalPartitionId
+	if _, ok := f.nvlp[DefaultNVLinkLogicalPartitionId]; ok {
+		// Default NVLink Logical Partition already exists, create a new one with a different ID
+		nid = uuid.NewString()
+	}
+
+	nvlp := &cwssaws.NVLinkLogicalPartition{
+		Id: &cwssaws.NVLinkLogicalPartitionId{Value: nid},
+		Config: &cwssaws.NVLinkLogicalPartitionConfig{
+			TenantOrganizationId: req.Config.TenantOrganizationId,
+			Metadata:             req.Config.Metadata,
 		},
-	}, nil
+		Status: &cwssaws.NVLinkLogicalPartitionStatus{State: cwssaws.TenantState_READY},
+	}
+	f.nvlp[nid] = nvlp
+	return nvlp, nil
+}
+
+// UpdateNVLinkLogicalPartition implements interface NICoServer
+func (f *NICoServerImpl) UpdateNVLinkLogicalPartition(ctx context.Context, req *cwssaws.NVLinkLogicalPartitionUpdateRequest) (*cwssaws.NVLinkLogicalPartitionUpdateResult, error) {
+	if req == nil || req.Id == nil || req.Id.Value == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid request argument")
+	}
+
+	nvlp, ok := f.nvlp[req.Id.Value]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "NVLink Logical Partition with ID %q not found", req.Id.Value)
+	}
+	if req.Config != nil {
+		if nvlp.Config == nil {
+			nvlp.Config = &cwssaws.NVLinkLogicalPartitionConfig{}
+		}
+		if req.Config.TenantOrganizationId != "" {
+			nvlp.Config.TenantOrganizationId = req.Config.TenantOrganizationId
+		}
+		if req.Config.Metadata != nil {
+			nvlp.Config.Metadata = req.Config.Metadata
+		}
+	}
+	return &cwssaws.NVLinkLogicalPartitionUpdateResult{}, nil
+}
+
+// DeleteNVLinkLogicalPartition implements interface NICoServer
+func (f *NICoServerImpl) DeleteNVLinkLogicalPartition(ctx context.Context, req *cwssaws.NVLinkLogicalPartitionDeletionRequest) (*cwssaws.NVLinkLogicalPartitionDeletionResult, error) {
+	if req == nil || req.Id == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid request argument")
+	}
+
+	if _, ok := f.nvlp[req.Id.Value]; ok {
+		delete(f.nvlp, req.Id.Value)
+		return &cwssaws.NVLinkLogicalPartitionDeletionResult{}, nil
+	}
+	return nil, status.Errorf(codes.NotFound, "NVLink Logical Partition with ID %q not found", req.Id.Value)
+}
+
+// NVLinkLogicalPartitionsForTenant implements interface NICoServer
+func (f *NICoServerImpl) NVLinkLogicalPartitionsForTenant(ctx context.Context, req *cwssaws.TenantSearchQuery) (*cwssaws.NVLinkLogicalPartitionList, error) {
+	response := cwssaws.NVLinkLogicalPartitionList{}
+	for _, nvlp := range f.nvlp {
+		if req.GetTenantOrganizationId() == "" || (nvlp.Config != nil && nvlp.Config.TenantOrganizationId == req.GetTenantOrganizationId()) {
+			response.Partitions = append(response.Partitions, nvlp)
+		}
+	}
+	return &response, nil
 }
 
 func (f *NICoServerImpl) FindTenantOrganizationIds(ctx context.Context, req *cwssaws.TenantSearchFilter) (*cwssaws.TenantOrganizationIdList, error) {
@@ -2351,4 +2440,3 @@ func (f *NICoServerImpl) LoadTestIdentity() {
 	}
 	f.identityState[seedOrg] = st
 }
-
