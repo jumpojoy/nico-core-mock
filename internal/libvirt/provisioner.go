@@ -6,10 +6,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"net/http"
 	"path"
 	"strings"
-	"time"
 
 	golibvirt "github.com/digitalocean/go-libvirt"
 	"github.com/rs/zerolog/log"
@@ -20,6 +18,7 @@ type ProvisionRequest struct {
 	MachineID          string
 	InstanceID         string
 	ImageURL           string
+	ImageDigest        string
 	ImageCapacityBytes uint64
 	UserData           string
 }
@@ -90,7 +89,7 @@ func (p *Provisioner) ProvisionMachine(ctx context.Context, req ProvisionRequest
 	}
 
 	imageFormat := imageFormatFromURL(req.ImageURL)
-	imageSize, body, err := openImage(ctx, req.ImageURL)
+	imageSize, body, err := openCachedOrDownloadImage(ctx, req.ImageURL, req.ImageDigest, p.cfg.ImageCacheDir)
 	if err != nil {
 		return err
 	}
@@ -272,25 +271,6 @@ func createVolume(l *golibvirt.Libvirt, pool golibvirt.StoragePool, name string,
 		return golibvirt.StorageVol{}, fmt.Errorf("create volume %q: %w", name, err)
 	}
 	return vol, nil
-}
-
-func openImage(ctx context.Context, imageURL string) (int64, io.ReadCloser, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, imageURL, nil)
-	if err != nil {
-		return 0, nil, fmt.Errorf("create image download request: %w", err)
-	}
-
-	client := &http.Client{Timeout: 2 * time.Hour}
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, nil, fmt.Errorf("download image from %q: %w", imageURL, err)
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		resp.Body.Close()
-		return 0, nil, fmt.Errorf("download image from %q: HTTP %s", imageURL, resp.Status)
-	}
-
-	return resp.ContentLength, resp.Body, nil
 }
 
 func volumeCapacity(imageSize int64, imageCapacityBytes, defaultBytes uint64) uint64 {

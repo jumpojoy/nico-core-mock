@@ -13,6 +13,7 @@ type Config struct {
 	Endpoint           string
 	StoragePool        string
 	DefaultVolumeBytes uint64
+	ImageCacheDir      string
 }
 
 const defaultVolumeBytes = 20 << 30 // 20 GiB

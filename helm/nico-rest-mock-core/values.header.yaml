@@ -60,7 +60,8 @@ libvirt:
 # Persist VPCs, instances, and other runtime Forge state across pod restarts.
 persistence:
   enabled: true
-  size: 1Gi
+  size: 10Gi
   storageClassName: ""
   mountPath: /data
   stateFile: /data/forge-state.json
+  imageCacheDir: /data/os-image-cache

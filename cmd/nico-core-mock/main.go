@@ -5,7 +5,10 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
@@ -23,6 +26,7 @@ func main() {
 	libvirtStoragePool := flag.String("libvirt-storage-pool", "default", "libvirt storage pool used for instance root volumes")
 	libvirtVolumeGiB := flag.Uint("libvirt-volume-gib", 20, "default root volume size in GiB when OS image capacity is unknown")
 	stateFile := flag.String("state-file", "", "path to JSON file for persisting mutable Forge state across restarts")
+	imageCacheDir := flag.String("image-cache-dir", "", "directory for cached OS images; defaults to <state-file-dir>/os-image-cache when state-file is set")
 	flag.Parse()
 
 	initLogging(resolveLogLevel(*logLevel))
@@ -44,10 +48,16 @@ func main() {
 	powerChecker := libvirt.PowerChecker(libvirt.NoopChecker{})
 	var provisioner *libvirt.Provisioner
 	if *libvirtEndpoint != "" {
+		cacheDir := strings.TrimSpace(*imageCacheDir)
+		if cacheDir == "" && strings.TrimSpace(*stateFile) != "" {
+			cacheDir = filepath.Join(filepath.Dir(*stateFile), "os-image-cache")
+		}
+
 		libvirtCfg := libvirt.Config{
 			Endpoint:           *libvirtEndpoint,
 			StoragePool:        *libvirtStoragePool,
 			DefaultVolumeBytes: uint64(*libvirtVolumeGiB) << 30,
+			ImageCacheDir:      cacheDir,
 		}
 
 		filter, err := libvirt.NewPowerFilter(*libvirtEndpoint)
@@ -60,6 +70,7 @@ func main() {
 		log.Info().
 			Str("endpoint", *libvirtEndpoint).
 			Str("storage_pool", libvirtCfg.StoragePool).
+			Str("image_cache_dir", libvirtCfg.ImageCacheDir).
 			Msg("libvirt integration enabled")
 	}
 

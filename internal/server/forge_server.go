@@ -243,20 +243,20 @@ func (f *NICoServerImpl) osImageLookupID(config *cwssaws.InstanceConfig) string 
 	return ""
 }
 
-func (f *NICoServerImpl) osImageSourceURL(config *cwssaws.InstanceConfig) (string, uint64, error) {
+func (f *NICoServerImpl) osImageSource(config *cwssaws.InstanceConfig) (url, digest string, capacity uint64, err error) {
 	lookupID := f.osImageLookupID(config)
 	if lookupID == "" {
-		return "", 0, fmt.Errorf("instance config has no os_image_id")
+		return "", "", 0, fmt.Errorf("instance config has no os_image_id")
 	}
 	img, ok := f.osi[lookupID]
 	if !ok {
-		return "", 0, fmt.Errorf("os image %q not found", lookupID)
+		return "", "", 0, fmt.Errorf("os image %q not found", lookupID)
 	}
 	attrs := img.GetAttributes()
 	if attrs == nil || strings.TrimSpace(attrs.GetSourceUrl()) == "" {
-		return "", 0, fmt.Errorf("os image %q has no source_url", lookupID)
+		return "", "", 0, fmt.Errorf("os image %q has no source_url", lookupID)
 	}
-	return attrs.GetSourceUrl(), attrs.GetCapacity(), nil
+	return attrs.GetSourceUrl(), attrs.GetDigest(), attrs.GetCapacity(), nil
 }
 
 func (f *NICoServerImpl) scheduleLibvirtProvision(req *cwssaws.InstanceAllocationRequest) {
@@ -267,7 +267,7 @@ func (f *NICoServerImpl) scheduleLibvirtProvision(req *cwssaws.InstanceAllocatio
 		return
 	}
 
-	imageURL, capacity, err := f.osImageSourceURL(req.Config)
+	imageURL, imageDigest, capacity, err := f.osImageSource(req.Config)
 	if err != nil {
 		logger.Debug().
 			Err(err).
@@ -291,6 +291,7 @@ func (f *NICoServerImpl) scheduleLibvirtProvision(req *cwssaws.InstanceAllocatio
 			MachineID:          machineID,
 			InstanceID:         instanceID,
 			ImageURL:           imageURL,
+			ImageDigest:        imageDigest,
 			ImageCapacityBytes: capacity,
 			UserData:           userData,
 		}); err != nil {
