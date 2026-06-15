@@ -27,6 +27,116 @@ func updateDomainBootDisk(l *golibvirt.Libvirt, domain golibvirt.Domain, volPath
 	return defined, nil
 }
 
+func updateDomainConfigDrive(l *golibvirt.Libvirt, domain golibvirt.Domain, poolName, volName string) (golibvirt.Domain, error) {
+	xmlDesc, err := l.DomainGetXMLDesc(domain, 0)
+	if err != nil {
+		return golibvirt.Domain{}, fmt.Errorf("get domain xml: %w", err)
+	}
+
+	updated, err := patchDomainConfigDriveXML(xmlDesc, poolName, volName)
+	if err != nil {
+		return golibvirt.Domain{}, err
+	}
+
+	defined, err := l.DomainDefineXML(updated)
+	if err != nil {
+		return golibvirt.Domain{}, fmt.Errorf("update domain config drive: %w", err)
+	}
+
+	return defined, nil
+}
+
+func patchDomainConfigDriveXML(xmlDesc, poolName, volName string) (string, error) {
+	matches := domainDiskPattern.FindAllStringSubmatchIndex(xmlDesc, -1)
+	selected := findConfigDriveDiskIndex(matches, xmlDesc, volName)
+	if selected >= 0 {
+		loc := matches[selected]
+		updatedBlock, err := patchConfigDriveBlock(xmlDesc[loc[0]:loc[1]], poolName, volName)
+		if err != nil {
+			return "", err
+		}
+		return xmlDesc[:loc[0]] + updatedBlock + xmlDesc[loc[1]:], nil
+	}
+
+	return insertConfigDriveDisk(xmlDesc, poolName, volName)
+}
+
+func findConfigDriveDiskIndex(matches [][]int, xmlDesc, volName string) int {
+	for i, loc := range matches {
+		block := xmlDesc[loc[0]:loc[1]]
+		if !isCDROMDisk(block) {
+			continue
+		}
+		if strings.Contains(block, volName) {
+			return i
+		}
+	}
+
+	for i, loc := range matches {
+		if isCDROMDisk(xmlDesc[loc[0]:loc[1]]) {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func isCDROMDisk(diskXML string) bool {
+	return strings.EqualFold(attributeValue(diskXML, "device"), "cdrom")
+}
+
+func patchConfigDriveBlock(diskXML, poolName, volName string) (string, error) {
+	openTagPattern := regexp.MustCompile(`(?s)^(<disk\b[^>]*>)`)
+	match := openTagPattern.FindStringSubmatch(diskXML)
+	if len(match) != 2 {
+		return "", fmt.Errorf("invalid cdrom disk xml")
+	}
+
+	openTag := setAttribute(match[1], "type", "volume")
+	openTag = setAttribute(openTag, "device", "cdrom")
+	updated := openTag + diskXML[len(match[1]):]
+	updated = replaceOrInsertDriver(updated, "raw")
+	updated = replaceOrInsertSource(updated, "", poolName, volName)
+	updated = ensureReadonlyDisk(updated)
+	return updated, nil
+}
+
+func ensureReadonlyDisk(diskXML string) string {
+	if regexp.MustCompile(`(?s)<readonly\s*/>`).MatchString(diskXML) {
+		return diskXML
+	}
+
+	sourcePattern := regexp.MustCompile(`(?s)<source\b[^>]*/>`)
+	if loc := sourcePattern.FindStringIndex(diskXML); loc != nil {
+		return diskXML[:loc[1]] + "\n      <readonly/>" + diskXML[loc[1]:]
+	}
+
+	openTag := regexp.MustCompile(`(?s)^(<disk\b[^>]*>)`).FindStringSubmatch(diskXML)
+	if len(openTag) == 2 {
+		return openTag[1] + "\n      <readonly/>" + diskXML[len(openTag[1]):]
+	}
+
+	return diskXML
+}
+
+func insertConfigDriveDisk(xmlDesc, poolName, volName string) (string, error) {
+	idx := strings.LastIndex(xmlDesc, "</devices>")
+	if idx < 0 {
+		return "", fmt.Errorf("domain xml has no devices section")
+	}
+	block := configDriveDiskBlock(poolName, volName)
+	return xmlDesc[:idx] + block + "\n" + xmlDesc[idx:], nil
+}
+
+func configDriveDiskBlock(poolName, volName string) string {
+	return fmt.Sprintf(`    <disk type='volume' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source pool='%s' volume='%s'/>
+      <target dev='hdb' bus='ide'/>
+      <readonly/>
+    </disk>`, xmlAttr(poolName), xmlAttr(volName))
+}
+
 var domainDiskPattern = regexp.MustCompile(`(?s)<disk\b[^>]*>.*?</disk>`)
 
 func patchDomainBootDiskXML(xmlDesc, volPath, diskFormat, poolName, volName string) (string, error) {

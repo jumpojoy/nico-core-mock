@@ -39,8 +39,8 @@ func TestImageFormatFromURL(t *testing.T) {
 }
 
 func TestVolumeCapacity(t *testing.T) {
-	got := volumeCapacity(5<<30, 10<<30, 20<<30)
-	if got != 10<<30 {
+	got := volumeCapacity(5<<30, 30<<30, 20<<30)
+	if got != 30<<30 {
 		t.Fatalf("expected image capacity to win over default, got %d", got)
 	}
 	got = volumeCapacity(25<<30, 10<<30, 20<<30)

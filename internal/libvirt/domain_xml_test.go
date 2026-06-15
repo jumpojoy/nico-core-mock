@@ -98,3 +98,50 @@ func TestSetAttribute(t *testing.T) {
 		t.Fatalf("setAttribute() insert = %q", got)
 	}
 }
+
+func TestPatchDomainConfigDriveXMLInsertsCDROM(t *testing.T) {
+	const domainXML = `<domain type='kvm'>
+  <devices>
+    <disk type='file' device='disk'>
+      <source file='/root.qcow2'/>
+    </disk>
+  </devices>
+</domain>`
+
+	updated, err := patchDomainConfigDriveXML(domainXML, "default", "machine-config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`device='cdrom'`,
+		`pool='default'`,
+		`volume='machine-config'`,
+		`<readonly/>`,
+	} {
+		if !strings.Contains(updated, want) {
+			t.Fatalf("patched xml missing %q:\n%s", want, updated)
+		}
+	}
+}
+
+func TestPatchDomainConfigDriveXMLUpdatesExistingCDROM(t *testing.T) {
+	const domainXML = `<domain type='kvm'>
+  <devices>
+    <disk type='file' device='cdrom'>
+      <source file='/old-config.iso'/>
+      <target dev='hda' bus='ide'/>
+    </disk>
+  </devices>
+</domain>`
+
+	updated, err := patchDomainConfigDriveXML(domainXML, "default", "machine-config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(updated, "old-config.iso") {
+		t.Fatalf("expected cdrom source to be replaced:\n%s", updated)
+	}
+	if !strings.Contains(updated, `volume='machine-config'`) {
+		t.Fatalf("expected config volume attached:\n%s", updated)
+	}
+}

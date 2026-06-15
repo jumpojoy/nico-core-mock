@@ -7,6 +7,7 @@ require (
 	github.com/digitalocean/go-libvirt v0.0.0-20260609165003-6254771e63a8
 	github.com/gogo/status v1.1.1
 	github.com/google/uuid v1.6.0
+	github.com/kdomanski/iso9660 v0.4.0
 	github.com/rs/zerolog v1.33.0
 	golang.org/x/term v0.40.0
 	google.golang.org/grpc v1.79.3

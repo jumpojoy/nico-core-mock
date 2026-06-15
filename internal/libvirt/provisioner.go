@@ -1,6 +1,7 @@
 package libvirt
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -17,8 +18,10 @@ import (
 // ProvisionRequest describes a machine to provision from an OS image URL.
 type ProvisionRequest struct {
 	MachineID          string
+	InstanceID         string
 	ImageURL           string
 	ImageCapacityBytes uint64
+	UserData           string
 }
 
 // Provisioner creates libvirt volumes and starts existing domains for allocated instances.
@@ -53,7 +56,7 @@ func (p *Provisioner) ProvisionMachine(ctx context.Context, req ProvisionRequest
 		return fmt.Errorf("machine id is required")
 	}
 	if strings.TrimSpace(req.ImageURL) == "" {
-		return p.startExistingDomain(ctx, machineID)
+		return p.startExistingDomain(ctx, req)
 	}
 
 	log.Info().
@@ -114,6 +117,11 @@ func (p *Provisioner) ProvisionMachine(ctx context.Context, req ProvisionRequest
 		return err
 	}
 
+	domain, err = p.attachConfigDrive(ctx, l, pool, domain, machineID, req)
+	if err != nil {
+		return err
+	}
+
 	if err := startDomain(l, domain, machineID); err != nil {
 		return err
 	}
@@ -162,16 +170,20 @@ func (p *Provisioner) ReleaseMachine(ctx context.Context, machineID string) erro
 	if err := deleteVolumeIfExists(l, pool, volName); err != nil {
 		return err
 	}
+	if err := deleteVolumeIfExists(l, pool, configDriveVolumeName(machineID)); err != nil {
+		return err
+	}
 
 	log.Info().Str("machine_id", machineID).Msg("released libvirt volume")
 	return nil
 }
 
-func (p *Provisioner) startExistingDomain(ctx context.Context, machineID string) error {
+func (p *Provisioner) startExistingDomain(ctx context.Context, req ProvisionRequest) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 
+	machineID := canonicalMachineID(req.MachineID)
 	log.Info().Str("machine_id", machineID).Msg("starting existing libvirt domain without os image")
 
 	l, err := Connect(p.cfg.Endpoint)
@@ -184,12 +196,58 @@ func (p *Provisioner) startExistingDomain(ctx context.Context, machineID string)
 	if err != nil {
 		return err
 	}
+
+	pool, err := l.StoragePoolLookupByName(p.cfg.StoragePool)
+	if err != nil {
+		return fmt.Errorf("lookup storage pool %q: %w", p.cfg.StoragePool, err)
+	}
+
+	domain, err = p.attachConfigDrive(ctx, l, pool, domain, machineID, req)
+	if err != nil {
+		return err
+	}
+
 	if err := startDomain(l, domain, machineID); err != nil {
 		return err
 	}
 
 	log.Info().Str("machine_id", machineID).Msg("libvirt domain started")
 	return nil
+}
+
+func (p *Provisioner) attachConfigDrive(ctx context.Context, l *golibvirt.Libvirt, pool golibvirt.StoragePool, domain golibvirt.Domain, machineID string, req ProvisionRequest) (golibvirt.Domain, error) {
+	userData := strings.TrimSpace(req.UserData)
+	if userData == "" {
+		return domain, nil
+	}
+
+	instanceID := strings.TrimSpace(req.InstanceID)
+	if instanceID == "" {
+		instanceID = machineID
+	}
+
+	isoBytes, err := BuildConfigDriveISO(userData, instanceID)
+	if err != nil {
+		return golibvirt.Domain{}, err
+	}
+
+	volName := configDriveVolumeName(machineID)
+	if err := uploadVolumeData(l, pool, volName, isoVolumeCapacity(len(isoBytes)), "raw", bytes.NewReader(isoBytes)); err != nil {
+		return golibvirt.Domain{}, err
+	}
+
+	domain, err = updateDomainConfigDrive(l, domain, p.cfg.StoragePool, volName)
+	if err != nil {
+		return golibvirt.Domain{}, err
+	}
+
+	log.Info().
+		Str("machine_id", machineID).
+		Str("config_volume", volName).
+		Int("iso_bytes", len(isoBytes)).
+		Msg("attached config drive")
+
+	return domain, nil
 }
 
 func deleteVolumeIfExists(l *golibvirt.Libvirt, pool golibvirt.StoragePool, name string) error {

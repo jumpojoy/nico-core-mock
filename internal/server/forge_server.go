@@ -276,12 +276,23 @@ func (f *NICoServerImpl) scheduleLibvirtProvision(req *cwssaws.InstanceAllocatio
 	}
 
 	machineID := req.MachineId.GetId()
+	instanceID := machineID
+	if req.InstanceId != nil && req.InstanceId.Value != "" {
+		instanceID = req.InstanceId.Value
+	}
+	userData := ""
+	if req.Config != nil && req.Config.Os != nil {
+		userData = req.Config.Os.GetUserData()
+	}
+
 	go func() {
 		ctx := context.Background()
 		if err := f.provisioner.ProvisionMachine(ctx, libvirtfilter.ProvisionRequest{
 			MachineID:          machineID,
+			InstanceID:         instanceID,
 			ImageURL:           imageURL,
 			ImageCapacityBytes: capacity,
+			UserData:           userData,
 		}); err != nil {
 			logger.Error().
 				Err(err).
