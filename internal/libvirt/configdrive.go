@@ -15,7 +15,7 @@ const configDriveVolumeLabel = "config-2"
 
 // BuildConfigDriveISO builds an OpenStack config-2 ISO containing user-data only.
 // network_data is intentionally omitted so cloud-init leaves network configuration unchanged.
-func BuildConfigDriveISO(userData, instanceUUID string) ([]byte, error) {
+func BuildConfigDriveISO(userData, instanceUUID, instanceName string) ([]byte, error) {
 	userData = strings.TrimSpace(userData)
 	if userData == "" {
 		return nil, fmt.Errorf("user-data is required")
@@ -25,7 +25,13 @@ func BuildConfigDriveISO(userData, instanceUUID string) ([]byte, error) {
 		return nil, fmt.Errorf("instance uuid is required")
 	}
 
-	metaData, err := json.Marshal(map[string]string{"uuid": instanceUUID})
+	meta := map[string]string{"uuid": instanceUUID}
+	if instanceName = strings.TrimSpace(instanceName); instanceName != "" {
+		meta["name"] = instanceName
+		meta["hostname"] = instanceName
+	}
+
+	metaData, err := json.Marshal(meta)
 	if err != nil {
 		return nil, fmt.Errorf("marshal meta_data.json: %w", err)
 	}

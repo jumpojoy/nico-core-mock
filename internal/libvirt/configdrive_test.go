@@ -12,7 +12,7 @@ import (
 
 func TestBuildConfigDriveISO(t *testing.T) {
 	userData := "#cloud-config\npackages:\n  - curl\n"
-	isoBytes, err := BuildConfigDriveISO(userData, "00000000-0000-4000-8000-000000000001")
+	isoBytes, err := BuildConfigDriveISO(userData, "00000000-0000-4000-8000-000000000001", "my-instance")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,6 +44,12 @@ func TestBuildConfigDriveISO(t *testing.T) {
 	}
 	if meta["uuid"] != "00000000-0000-4000-8000-000000000001" {
 		t.Fatalf("meta_data uuid = %q", meta["uuid"])
+	}
+	if meta["name"] != "my-instance" {
+		t.Fatalf("meta_data name = %q", meta["name"])
+	}
+	if meta["hostname"] != "my-instance" {
+		t.Fatalf("meta_data hostname = %q", meta["hostname"])
 	}
 
 	userReader, err := openISOFile(image, "openstack", "latest", "user_data")
@@ -99,8 +105,38 @@ func findISOChild(dir *iso9660.File, name string) (*iso9660.File, error) {
 }
 
 func TestBuildConfigDriveISORequiresUserData(t *testing.T) {
-	if _, err := BuildConfigDriveISO("   ", "id"); err == nil {
+	if _, err := BuildConfigDriveISO("   ", "id", "name"); err == nil {
 		t.Fatal("expected error for empty user-data")
+	}
+}
+
+func TestBuildConfigDriveISOOmitsHostnameWhenNameEmpty(t *testing.T) {
+	isoBytes, err := BuildConfigDriveISO("#cloud-config\n", "instance-id", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	image, err := iso9660.OpenImage(bytes.NewReader(isoBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	metaReader, err := openISOFile(image, "openstack", "latest", "meta_data.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var meta map[string]string
+	if err := json.NewDecoder(metaReader).Decode(&meta); err != nil {
+		t.Fatal(err)
+	}
+	if meta["uuid"] != "instance-id" {
+		t.Fatalf("meta_data uuid = %q", meta["uuid"])
+	}
+	if _, ok := meta["name"]; ok {
+		t.Fatalf("expected name to be omitted, got %q", meta["name"])
+	}
+	if _, ok := meta["hostname"]; ok {
+		t.Fatalf("expected hostname to be omitted, got %q", meta["hostname"])
 	}
 }
 

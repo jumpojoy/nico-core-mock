@@ -16,6 +16,7 @@ import (
 type ProvisionRequest struct {
 	MachineID          string
 	InstanceID         string
+	InstanceName       string
 	ImageURL           string
 	ImageDigest        string
 	ImageCapacityBytes uint64
@@ -224,7 +225,7 @@ func (p *Provisioner) attachConfigDrive(ctx context.Context, l *golibvirt.Libvir
 		instanceID = machineID
 	}
 
-	isoBytes, err := BuildConfigDriveISO(userData, instanceID)
+	isoBytes, err := BuildConfigDriveISO(userData, instanceID, req.InstanceName)
 	if err != nil {
 		return golibvirt.Domain{}, err
 	}
