@@ -23,6 +23,9 @@ KEYCLOAK_CLIENT_ID="${KEYCLOAK_CLIENT_ID:-nico-api}"
 KEYCLOAK_URL="${KEYCLOAK_URL:-http://10.200.0.1:8082}"
 API_URL="${API_URL:-http://10.200.0.1:8388}"
 ORG="${ORG:-test-org}"
+FAKE_INSTANCE_TYPE_NAME="${FAKE_INSTANCE_TYPE_NAME:-mock-x1.large}"
+FAKE_ALLOCATION_NAME="${FAKE_ALLOCATION_NAME:-mock-allocation}"
+FAKE_ALLOCATION_MACHINES="${FAKE_ALLOCATION_MACHINES:-1}"
 
 SERVICE_ACCOUNT_USERNAME="${SERVICE_ACCOUNT_USERNAME:-service-account-${KEYCLOAK_CLIENT_ID}}"
 
@@ -112,6 +115,131 @@ verify_service_account() {
     echo "$response" | jq .
 }
 
+get_first_site_id() {
+    local token=$1
+    curl -sf -H "Authorization: Bearer ${token}" \
+        "${API_URL}/v2/org/${ORG}/nico/site" | jq -r '.[0].id // empty'
+}
+
+create_fake_instance_type() {
+    local token=$1
+    local site_id=$2
+
+    echo "Looking up instance type ${FAKE_INSTANCE_TYPE_NAME}..." >&2
+    local existing_id
+    existing_id=$(curl -sf -H "Authorization: Bearer ${token}" \
+        "${API_URL}/v2/org/${ORG}/nico/instance/type" \
+        | jq -r --arg name "$FAKE_INSTANCE_TYPE_NAME" \
+            'map(select(.name == $name)) | .[0].id // empty')
+
+    if [ -n "$existing_id" ]; then
+        echo "Instance type ${FAKE_INSTANCE_TYPE_NAME} already exists (${existing_id}), skipping create" >&2
+        echo "$existing_id"
+        return 0
+    fi
+
+    echo "Creating instance type ${FAKE_INSTANCE_TYPE_NAME} on site ${site_id}..." >&2
+    local body
+    body=$(jq -n \
+        --arg name "$FAKE_INSTANCE_TYPE_NAME" \
+        --arg siteId "$site_id" \
+        '{
+            name: $name,
+            description: "Fake instance type for local/dev",
+            siteId: $siteId,
+            machineCapabilities: [
+                {type: "CPU", name: "Mock CPU", frequency: "3.0GHz", count: 2},
+                {type: "Memory", name: "Mock RAM", capacity: "64GB", count: 4},
+                {type: "GPU", name: "Mock GPU", capacity: "80GB", count: 1}
+            ]
+        }')
+
+    local response
+    response=$(curl -sf -X POST \
+        -H "Authorization: Bearer ${token}" \
+        -H "Content-Type: application/json" \
+        "${API_URL}/v2/org/${ORG}/nico/instance/type" \
+        -d "$body")
+
+    local new_id
+    new_id=$(echo "$response" | jq -r .id)
+    echo "Created instance type ${FAKE_INSTANCE_TYPE_NAME} (${new_id})" >&2
+    echo "$new_id"
+}
+
+allocate_instance_type_to_current_tenant() {
+    local token=$1
+    local site_id=$2
+    local instance_type_id=$3
+
+    echo "Looking up current tenant..."
+    local tenant_id
+    tenant_id=$(curl -sf -H "Authorization: Bearer ${token}" \
+        "${API_URL}/v2/org/${ORG}/nico/tenant/current" | jq -r .id)
+
+    if [ -z "$tenant_id" ] || [ "$tenant_id" = "null" ]; then
+        echo "ERROR: Failed to determine current tenant" >&2
+        exit 1
+    fi
+
+    echo "Looking up allocation ${FAKE_ALLOCATION_NAME}..."
+    local existing_id
+    existing_id=$(curl -sf -H "Authorization: Bearer ${token}" \
+        "${API_URL}/v2/org/${ORG}/nico/allocation" \
+        | jq -r --arg name "$FAKE_ALLOCATION_NAME" \
+            'map(select(.name == $name)) | .[0].id // empty')
+
+    if [ -n "$existing_id" ]; then
+        echo "Allocation ${FAKE_ALLOCATION_NAME} already exists (${existing_id}), skipping create"
+        return 0
+    fi
+
+    echo "Creating allocation ${FAKE_ALLOCATION_NAME} for tenant ${tenant_id}..."
+    local body
+    body=$(jq -n \
+        --arg name "$FAKE_ALLOCATION_NAME" \
+        --arg tenantId "$tenant_id" \
+        --arg siteId "$site_id" \
+        --arg instanceTypeId "$instance_type_id" \
+        --argjson count "$FAKE_ALLOCATION_MACHINES" \
+        '{
+            name: $name,
+            description: "Fake allocation for local/dev",
+            tenantId: $tenantId,
+            siteId: $siteId,
+            allocationConstraints: [{
+                resourceType: "InstanceType",
+                resourceTypeId: $instanceTypeId,
+                constraintType: "Reserved",
+                constraintValue: $count
+            }]
+        }')
+
+    local response
+    response=$(curl -sf -X POST \
+        -H "Authorization: Bearer ${token}" \
+        -H "Content-Type: application/json" \
+        "${API_URL}/v2/org/${ORG}/nico/allocation" \
+        -d "$body")
+
+    echo "Allocation created:"
+    echo "$response" | jq '{id, name, tenantId, siteId, allocationConstraints}'
+}
+
+create_fake_instance_type_and_allocation() {
+    local token=$1
+    local site_id
+    site_id=$(get_first_site_id "$token")
+    if [ -z "$site_id" ]; then
+        echo "No sites found, skipping fake instance type and allocation"
+        return 0
+    fi
+
+    local instance_type_id
+    instance_type_id=$(create_fake_instance_type "$token" "$site_id")
+    allocate_instance_type_to_current_tenant "$token" "$site_id" "$instance_type_id"
+}
+
 enable_site_image_based_os() {
     local token=$1
     echo "Enabling imageBasedOperatingSystem site capability..."
@@ -149,6 +277,7 @@ main() {
     token=$(get_service_account_token)
     verify_service_account "$token"
     enable_site_image_based_os "$token"
+    create_fake_instance_type_and_allocation "$token"
 
     echo "Post-deployment configuration complete."
 }
