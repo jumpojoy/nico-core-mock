@@ -808,7 +808,9 @@ func (f *NICoServerImpl) CreateNVLinkLogicalPartition(ctx context.Context, req *
 	}
 
 	nid := DefaultNVLinkLogicalPartitionId
-	if _, ok := f.nvlp[DefaultNVLinkLogicalPartitionId]; ok {
+	if req.Id != nil && req.Id.Value != "" {
+		nid = req.Id.Value
+	} else if _, ok := f.nvlp[DefaultNVLinkLogicalPartitionId]; ok {
 		// Default NVLink Logical Partition already exists, create a new one with a different ID
 		nid = uuid.NewString()
 	}
@@ -1454,8 +1456,9 @@ func (f *NICoServerImpl) CreateIBPartition(c context.Context, req *cwssaws.IBPar
 	}
 
 	nid := DefaultIBParitionId
-	_, ok := f.ibp[DefaultNetworkSegmentId]
-	if ok {
+	if req.Id != nil && req.Id.Value != "" {
+		nid = req.Id.Value
+	} else if _, ok := f.ibp[DefaultIBParitionId]; ok {
 		// Default IBPartition already exists, create a new one with a different ID
 		nid = uuid.NewString()
 	}
