@@ -1469,6 +1469,7 @@ func (f *NICoServerImpl) CreateIBPartition(c context.Context, req *cwssaws.IBPar
 			Name:                 req.Config.Name,
 			TenantOrganizationId: req.Config.TenantOrganizationId,
 		},
+		Status: &cwssaws.IBPartitionStatus{State: cwssaws.TenantState_READY},
 	}
 
 	f.ibp[nid] = nibp
