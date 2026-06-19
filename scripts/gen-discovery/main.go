@@ -26,10 +26,34 @@ type inventory struct {
 }
 
 type machineSpec struct {
-	ID            string          `yaml:"id"`
-	State         string          `yaml:"state"`
-	Interfaces    []interfaceSpec `yaml:"interfaces"`
-	DiscoveryInfo map[string]any  `yaml:"discovery_info"`
+	ID                  string                   `yaml:"id"`
+	State               string                   `yaml:"state"`
+	Interfaces          []interfaceSpec          `yaml:"interfaces"`
+	DiscoveryInfo       map[string]any           `yaml:"discovery_info"`
+	MachineCapabilities []machineCapabilitySpec  `yaml:"machine_capabilities"`
+}
+
+type machineCapabilitySpec struct {
+	Type       string `yaml:"type"`
+	Name       string `yaml:"name"`
+	Vendor     string `yaml:"vendor,omitempty"`
+	Count      int    `yaml:"count"`
+	Frequency  string `yaml:"frequency,omitempty"`
+	Capacity   string `yaml:"capacity,omitempty"`
+	DeviceType string `yaml:"device_type,omitempty"`
+}
+
+var mockCapabilities = []machineCapabilitySpec{
+	{Type: "CPU", Name: "AMD EPYC 9115 16-Core Processor", Vendor: "AuthenticAMD", Count: 1},
+	{Type: "DPU", Name: "DPU", Count: 1},
+	{Type: "Network", Name: "I350 Gigabit Network Connection", Vendor: "Intel Corporation", Count: 2},
+	{Type: "Network", Name: "MT43244 BlueField-3 integrated ConnectX-7 network controller", Vendor: "Mellanox Technologies", Count: 1, DeviceType: "DPU"},
+	{Type: "Storage", Name: "SAMSUNG MZQL21T9HCJR-00A07", Count: 4},
+	{Type: "GPU", Name: "NVIDIA A30", Frequency: "930 MHz", Capacity: "24576 MiB", Count: 1},
+	{Type: "Memory", Name: "DDR5", Capacity: "262144 MB", Count: 1},
+	{Type: "InfiniBand", Name: "MT28800 Family [ConnectX-5 Ex]", Vendor: "Mellanox Technologies", Count: 2},
+	{Type: "Storage", Name: "SAMSUNG MZQL23T8HCLS-00A07", Count: 8},
+	{Type: "Storage", Name: "SAMSUNG MZQL2960HCJR-00A07", Count: 2},
 }
 
 type interfaceSpec struct {
@@ -71,7 +95,8 @@ func buildInventory() inventory {
 				SegmentID:        defaultSegmentID,
 				PrimaryInterface: true,
 			}},
-			DiscoveryInfo: discovery,
+			DiscoveryInfo:       discovery,
+			MachineCapabilities: mockCapabilities,
 		})
 	}
 	return inv

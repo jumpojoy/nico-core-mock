@@ -28,9 +28,25 @@ type MachineSpec struct {
 	ID                   string         `yaml:"id"`
 	State                string         `yaml:"state"`
 	Interfaces           []InterfaceSpec `yaml:"interfaces"`
-	DiscoveryInfo        map[string]any `yaml:"discovery_info"`
-	DiscoveryInfoFile    string         `yaml:"discovery_info_file"`
-	AttachedDpuMachineID string         `yaml:"attached_dpu_machine_id"`
+	DiscoveryInfo        map[string]any          `yaml:"discovery_info"`
+	DiscoveryInfoFile    string                  `yaml:"discovery_info_file"`
+	AttachedDpuMachineID string                  `yaml:"attached_dpu_machine_id"`
+	MachineCapabilities  []MachineCapabilitySpec `yaml:"machine_capabilities"`
+}
+
+// MachineCapabilitySpec is a single entry in the machine_capabilities YAML list.
+// Field names match the REST API machineCapabilities format.
+type MachineCapabilitySpec struct {
+	Type            string   `yaml:"type"`
+	Name            string   `yaml:"name"`
+	Vendor          string   `yaml:"vendor"`
+	Count           uint32   `yaml:"count"`
+	Frequency       string   `yaml:"frequency"`
+	Capacity        string   `yaml:"capacity"`
+	Cores           uint32   `yaml:"cores"`
+	Threads         uint32   `yaml:"threads"`
+	DeviceType      string   `yaml:"device_type"`
+	InactiveDevices []uint32 `yaml:"inactive_devices"`
 }
 
 // InterfaceSpec describes a machine network interface.
@@ -150,6 +166,7 @@ func (spec MachineSpec) toProto(baseDir string, index int) (*forgev1.Machine, er
 		State:         state,
 		Interfaces:    protoIfaces,
 		DiscoveryInfo: discovery,
+		Capabilities:  machineCapabilitiesToProto(spec.MachineCapabilities),
 	}, nil
 }
 
@@ -254,6 +271,100 @@ func unmarshalDiscoveryInfo(data []byte) (*forgev1.DiscoveryInfo, error) {
 		return nil, fmt.Errorf("parse discovery info: %w", err)
 	}
 	return info, nil
+}
+
+func machineCapabilitiesToProto(specs []MachineCapabilitySpec) *forgev1.MachineCapabilitiesSet {
+	if len(specs) == 0 {
+		return nil
+	}
+	set := &forgev1.MachineCapabilitiesSet{}
+	for _, s := range specs {
+		switch s.Type {
+		case "CPU":
+			cpu := &forgev1.MachineCapabilityAttributesCpu{Name: s.Name, Count: s.Count}
+			if s.Vendor != "" {
+				cpu.Vendor = &s.Vendor
+			}
+			if s.Cores != 0 {
+				cpu.Cores = &s.Cores
+			}
+			if s.Threads != 0 {
+				cpu.Threads = &s.Threads
+			}
+			set.Cpu = append(set.Cpu, cpu)
+		case "GPU":
+			gpu := &forgev1.MachineCapabilityAttributesGpu{Name: s.Name, Count: s.Count}
+			if s.Vendor != "" {
+				gpu.Vendor = &s.Vendor
+			}
+			if s.Frequency != "" {
+				gpu.Frequency = &s.Frequency
+			}
+			if s.Capacity != "" {
+				gpu.Capacity = &s.Capacity
+			}
+			if s.DeviceType != "" {
+				dt := deviceTypeToProto(s.DeviceType)
+				gpu.DeviceType = &dt
+			}
+			set.Gpu = append(set.Gpu, gpu)
+		case "Memory":
+			mem := &forgev1.MachineCapabilityAttributesMemory{Name: s.Name, Count: s.Count}
+			if s.Vendor != "" {
+				mem.Vendor = &s.Vendor
+			}
+			if s.Capacity != "" {
+				mem.Capacity = &s.Capacity
+			}
+			set.Memory = append(set.Memory, mem)
+		case "Storage":
+			st := &forgev1.MachineCapabilityAttributesStorage{Name: s.Name, Count: s.Count}
+			if s.Vendor != "" {
+				st.Vendor = &s.Vendor
+			}
+			if s.Capacity != "" {
+				st.Capacity = &s.Capacity
+			}
+			set.Storage = append(set.Storage, st)
+		case "Network":
+			net := &forgev1.MachineCapabilityAttributesNetwork{Name: s.Name, Count: s.Count}
+			if s.Vendor != "" {
+				net.Vendor = &s.Vendor
+			}
+			if s.DeviceType != "" {
+				dt := deviceTypeToProto(s.DeviceType)
+				net.DeviceType = &dt
+			}
+			set.Network = append(set.Network, net)
+		case "InfiniBand":
+			ib := &forgev1.MachineCapabilityAttributesInfiniband{
+				Name:            s.Name,
+				Count:           s.Count,
+				InactiveDevices: s.InactiveDevices,
+			}
+			if s.Vendor != "" {
+				ib.Vendor = &s.Vendor
+			}
+			set.Infiniband = append(set.Infiniband, ib)
+		case "DPU":
+			set.Dpu = append(set.Dpu, &forgev1.MachineCapabilityAttributesDpu{
+				Name:  s.Name,
+				Count: s.Count,
+			})
+		}
+	}
+	return set
+}
+
+func deviceTypeToProto(s string) forgev1.MachineCapabilityDeviceType {
+	switch s {
+	case "DPU":
+		return forgev1.MachineCapabilityDeviceType_MACHINE_CAPABILITY_DEVICE_TYPE_DPU
+	case "NVLink":
+		return forgev1.MachineCapabilityDeviceType_MACHINE_CAPABILITY_DEVICE_TYPE_NVLINK
+	default:
+		return forgev1.MachineCapabilityDeviceType_MACHINE_CAPABILITY_DEVICE_TYPE_UNKNOWN
+	}
 }
 
 func randomMAC(index int) string {
