@@ -54,8 +54,10 @@ libvirt:
   # libvirt URI, e.g. qemu+tcp://192.168.122.1:16509/system or qemu+ssh://root@host/system
   endpoint: ""
   storagePool: default
-  # Root disk size (GiB) for provisioned instances when the OS image has no capacity.
+  # Default root volume size when the OS image does not specify capacity.
   volumeGiB: 20
+
+# Persist VPCs, instances, and other runtime Forge state across pod restarts.
 persistence:
   enabled: true
   size: 10Gi
@@ -220,6 +222,45 @@ inventory:
                 - firmwareRev: GDC5A02Q
                   model: SAMSUNG MZQL2960HCJR-00A07
                   serial: S64FNN0X034201
+          machine_capabilities:
+            - type: CPU
+              name: AMD EPYC 9115 16-Core Processor
+              vendor: AuthenticAMD
+              count: 1
+            - type: DPU
+              name: DPU
+              count: 1
+            - type: Network
+              name: I350 Gigabit Network Connection
+              vendor: Intel Corporation
+              count: 2
+            - type: Network
+              name: MT43244 BlueField-3 integrated ConnectX-7 network controller
+              vendor: Mellanox Technologies
+              count: 1
+              device_type: DPU
+            - type: Storage
+              name: SAMSUNG MZQL21T9HCJR-00A07
+              count: 4
+            - type: GPU
+              name: NVIDIA A30
+              count: 1
+              frequency: 930 MHz
+              capacity: 24576 MiB
+            - type: Memory
+              name: DDR5
+              count: 1
+              capacity: 262144 MB
+            - type: InfiniBand
+              name: MT28800 Family [ConnectX-5 Ex]
+              vendor: Mellanox Technologies
+              count: 2
+            - type: Storage
+              name: SAMSUNG MZQL23T8HCLS-00A07
+              count: 8
+            - type: Storage
+              name: SAMSUNG MZQL2960HCJR-00A07
+              count: 2
         - id: 00000000-0000-4000-8000-000000000001
           state: Ready
           interfaces:
@@ -374,6 +415,45 @@ inventory:
                 - firmwareRev: GDC5A02Q
                   model: SAMSUNG MZQL2960HCJR-00A07
                   serial: S64FNN0X034202
+          machine_capabilities:
+            - type: CPU
+              name: AMD EPYC 9115 16-Core Processor
+              vendor: AuthenticAMD
+              count: 1
+            - type: DPU
+              name: DPU
+              count: 1
+            - type: Network
+              name: I350 Gigabit Network Connection
+              vendor: Intel Corporation
+              count: 2
+            - type: Network
+              name: MT43244 BlueField-3 integrated ConnectX-7 network controller
+              vendor: Mellanox Technologies
+              count: 1
+              device_type: DPU
+            - type: Storage
+              name: SAMSUNG MZQL21T9HCJR-00A07
+              count: 4
+            - type: GPU
+              name: NVIDIA A30
+              count: 1
+              frequency: 930 MHz
+              capacity: 24576 MiB
+            - type: Memory
+              name: DDR5
+              count: 1
+              capacity: 262144 MB
+            - type: InfiniBand
+              name: MT28800 Family [ConnectX-5 Ex]
+              vendor: Mellanox Technologies
+              count: 2
+            - type: Storage
+              name: SAMSUNG MZQL23T8HCLS-00A07
+              count: 8
+            - type: Storage
+              name: SAMSUNG MZQL2960HCJR-00A07
+              count: 2
         - id: 00000000-0000-4000-8000-000000000002
           state: Ready
           interfaces:
@@ -528,6 +608,45 @@ inventory:
                 - firmwareRev: GDC5A02Q
                   model: SAMSUNG MZQL2960HCJR-00A07
                   serial: S64FNN0X034203
+          machine_capabilities:
+            - type: CPU
+              name: AMD EPYC 9115 16-Core Processor
+              vendor: AuthenticAMD
+              count: 1
+            - type: DPU
+              name: DPU
+              count: 1
+            - type: Network
+              name: I350 Gigabit Network Connection
+              vendor: Intel Corporation
+              count: 2
+            - type: Network
+              name: MT43244 BlueField-3 integrated ConnectX-7 network controller
+              vendor: Mellanox Technologies
+              count: 1
+              device_type: DPU
+            - type: Storage
+              name: SAMSUNG MZQL21T9HCJR-00A07
+              count: 4
+            - type: GPU
+              name: NVIDIA A30
+              count: 1
+              frequency: 930 MHz
+              capacity: 24576 MiB
+            - type: Memory
+              name: DDR5
+              count: 1
+              capacity: 262144 MB
+            - type: InfiniBand
+              name: MT28800 Family [ConnectX-5 Ex]
+              vendor: Mellanox Technologies
+              count: 2
+            - type: Storage
+              name: SAMSUNG MZQL23T8HCLS-00A07
+              count: 8
+            - type: Storage
+              name: SAMSUNG MZQL2960HCJR-00A07
+              count: 2
         - id: 00000000-0000-4000-8000-000000000003
           state: Ready
           interfaces:
@@ -682,6 +801,45 @@ inventory:
                 - firmwareRev: GDC5A02Q
                   model: SAMSUNG MZQL2960HCJR-00A07
                   serial: S64FNN0X034204
+          machine_capabilities:
+            - type: CPU
+              name: AMD EPYC 9115 16-Core Processor
+              vendor: AuthenticAMD
+              count: 1
+            - type: DPU
+              name: DPU
+              count: 1
+            - type: Network
+              name: I350 Gigabit Network Connection
+              vendor: Intel Corporation
+              count: 2
+            - type: Network
+              name: MT43244 BlueField-3 integrated ConnectX-7 network controller
+              vendor: Mellanox Technologies
+              count: 1
+              device_type: DPU
+            - type: Storage
+              name: SAMSUNG MZQL21T9HCJR-00A07
+              count: 4
+            - type: GPU
+              name: NVIDIA A30
+              count: 1
+              frequency: 930 MHz
+              capacity: 24576 MiB
+            - type: Memory
+              name: DDR5
+              count: 1
+              capacity: 262144 MB
+            - type: InfiniBand
+              name: MT28800 Family [ConnectX-5 Ex]
+              vendor: Mellanox Technologies
+              count: 2
+            - type: Storage
+              name: SAMSUNG MZQL23T8HCLS-00A07
+              count: 8
+            - type: Storage
+              name: SAMSUNG MZQL2960HCJR-00A07
+              count: 2
         - id: 00000000-0000-4000-8000-000000000004
           state: Ready
           interfaces:
@@ -836,6 +994,45 @@ inventory:
                 - firmwareRev: GDC5A02Q
                   model: SAMSUNG MZQL2960HCJR-00A07
                   serial: S64FNN0X034205
+          machine_capabilities:
+            - type: CPU
+              name: AMD EPYC 9115 16-Core Processor
+              vendor: AuthenticAMD
+              count: 1
+            - type: DPU
+              name: DPU
+              count: 1
+            - type: Network
+              name: I350 Gigabit Network Connection
+              vendor: Intel Corporation
+              count: 2
+            - type: Network
+              name: MT43244 BlueField-3 integrated ConnectX-7 network controller
+              vendor: Mellanox Technologies
+              count: 1
+              device_type: DPU
+            - type: Storage
+              name: SAMSUNG MZQL21T9HCJR-00A07
+              count: 4
+            - type: GPU
+              name: NVIDIA A30
+              count: 1
+              frequency: 930 MHz
+              capacity: 24576 MiB
+            - type: Memory
+              name: DDR5
+              count: 1
+              capacity: 262144 MB
+            - type: InfiniBand
+              name: MT28800 Family [ConnectX-5 Ex]
+              vendor: Mellanox Technologies
+              count: 2
+            - type: Storage
+              name: SAMSUNG MZQL23T8HCLS-00A07
+              count: 8
+            - type: Storage
+              name: SAMSUNG MZQL2960HCJR-00A07
+              count: 2
         - id: 00000000-0000-4000-8000-000000000005
           state: Ready
           interfaces:
@@ -990,3 +1187,42 @@ inventory:
                 - firmwareRev: GDC5A02Q
                   model: SAMSUNG MZQL2960HCJR-00A07
                   serial: S64FNN0X034206
+          machine_capabilities:
+            - type: CPU
+              name: AMD EPYC 9115 16-Core Processor
+              vendor: AuthenticAMD
+              count: 1
+            - type: DPU
+              name: DPU
+              count: 1
+            - type: Network
+              name: I350 Gigabit Network Connection
+              vendor: Intel Corporation
+              count: 2
+            - type: Network
+              name: MT43244 BlueField-3 integrated ConnectX-7 network controller
+              vendor: Mellanox Technologies
+              count: 1
+              device_type: DPU
+            - type: Storage
+              name: SAMSUNG MZQL21T9HCJR-00A07
+              count: 4
+            - type: GPU
+              name: NVIDIA A30
+              count: 1
+              frequency: 930 MHz
+              capacity: 24576 MiB
+            - type: Memory
+              name: DDR5
+              count: 1
+              capacity: 262144 MB
+            - type: InfiniBand
+              name: MT28800 Family [ConnectX-5 Ex]
+              vendor: Mellanox Technologies
+              count: 2
+            - type: Storage
+              name: SAMSUNG MZQL23T8HCLS-00A07
+              count: 8
+            - type: Storage
+              name: SAMSUNG MZQL2960HCJR-00A07
+              count: 2
