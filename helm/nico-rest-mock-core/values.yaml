@@ -247,6 +247,7 @@ inventory:
               count: 1
               frequency: 930 MHz
               capacity: 24576 MiB
+              device_type: NVLink
             - type: Memory
               name: DDR5
               count: 1
@@ -440,6 +441,7 @@ inventory:
               count: 1
               frequency: 930 MHz
               capacity: 24576 MiB
+              device_type: NVLink
             - type: Memory
               name: DDR5
               count: 1
@@ -633,6 +635,7 @@ inventory:
               count: 1
               frequency: 930 MHz
               capacity: 24576 MiB
+              device_type: NVLink
             - type: Memory
               name: DDR5
               count: 1
@@ -826,6 +829,7 @@ inventory:
               count: 1
               frequency: 930 MHz
               capacity: 24576 MiB
+              device_type: NVLink
             - type: Memory
               name: DDR5
               count: 1
@@ -1019,6 +1023,7 @@ inventory:
               count: 1
               frequency: 930 MHz
               capacity: 24576 MiB
+              device_type: NVLink
             - type: Memory
               name: DDR5
               count: 1
@@ -1212,6 +1217,7 @@ inventory:
               count: 1
               frequency: 930 MHz
               capacity: 24576 MiB
+              device_type: NVLink
             - type: Memory
               name: DDR5
               count: 1

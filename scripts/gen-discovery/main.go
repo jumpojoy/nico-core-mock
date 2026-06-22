@@ -26,11 +26,11 @@ type inventory struct {
 }
 
 type machineSpec struct {
-	ID                  string                   `yaml:"id"`
-	State               string                   `yaml:"state"`
-	Interfaces          []interfaceSpec          `yaml:"interfaces"`
-	DiscoveryInfo       map[string]any           `yaml:"discovery_info"`
-	MachineCapabilities []machineCapabilitySpec  `yaml:"machine_capabilities"`
+	ID                  string                  `yaml:"id"`
+	State               string                  `yaml:"state"`
+	Interfaces          []interfaceSpec         `yaml:"interfaces"`
+	DiscoveryInfo       map[string]any          `yaml:"discovery_info"`
+	MachineCapabilities []machineCapabilitySpec `yaml:"machine_capabilities"`
 }
 
 type machineCapabilitySpec struct {
@@ -49,7 +49,7 @@ var mockCapabilities = []machineCapabilitySpec{
 	{Type: "Network", Name: "I350 Gigabit Network Connection", Vendor: "Intel Corporation", Count: 2},
 	{Type: "Network", Name: "MT43244 BlueField-3 integrated ConnectX-7 network controller", Vendor: "Mellanox Technologies", Count: 1, DeviceType: "DPU"},
 	{Type: "Storage", Name: "SAMSUNG MZQL21T9HCJR-00A07", Count: 4},
-	{Type: "GPU", Name: "NVIDIA A30", Frequency: "930 MHz", Capacity: "24576 MiB", Count: 1},
+	{Type: "GPU", Name: "NVIDIA A30", Frequency: "930 MHz", Capacity: "24576 MiB", Count: 1, DeviceType: "NVLink"},
 	{Type: "Memory", Name: "DDR5", Capacity: "262144 MB", Count: 1},
 	{Type: "InfiniBand", Name: "MT28800 Family [ConnectX-5 Ex]", Vendor: "Mellanox Technologies", Count: 2},
 	{Type: "Storage", Name: "SAMSUNG MZQL23T8HCLS-00A07", Count: 8},
