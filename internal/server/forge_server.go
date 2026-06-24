@@ -348,6 +348,27 @@ func (f *NICoServerImpl) visibleMachineIDs() []string {
 	return ids
 }
 
+// machineIDByMAC returns the id of the visible machine that has an interface
+// with the given MAC (case-insensitive), or "" if none. Used to link an
+// expected machine to the physical host that carries its BMC MAC.
+func (f *NICoServerImpl) machineIDByMAC(mac string) string {
+	if mac == "" {
+		return ""
+	}
+	for _, id := range f.visibleMachineIDs() {
+		m := f.m[id]
+		if m == nil {
+			continue
+		}
+		for _, iface := range m.GetInterfaces() {
+			if strings.EqualFold(iface.GetMacAddress(), mac) {
+				return id
+			}
+		}
+	}
+	return ""
+}
+
 // Version implements interface NICoServer
 func (f *NICoServerImpl) Version(ctx context.Context, req *cwssaws.VersionRequest) (*cwssaws.BuildInfo, error) {
 	return &cwssaws.BuildInfo{
@@ -1284,9 +1305,14 @@ func (f *NICoServerImpl) GetAllExpectedMachinesLinked(ctx context.Context, req *
 			BmcMacAddress:       em.BmcMacAddress,
 			ExpectedMachineId:   em.Id,
 		}
-		for _, mid := range f.visibleMachineIDs() {
+		// Link to the visible machine that carries this expected machine's BMC
+		// MAC (mock hosts are generated with mac 58:a2:e1:5b:d1:<b0+hostID>,
+		// matching the registered BmcMacAddress). Leaving MachineId nil when
+		// nothing matches models "not yet discovered" instead of collapsing
+		// every expected machine onto the first host — which made concurrent
+		// reservations collide on a single machine id.
+		if mid := f.machineIDByMAC(em.BmcMacAddress); mid != "" {
 			linked.MachineId = &cwssaws.MachineId{Id: mid}
-			break
 		}
 		res = append(res, linked)
 	}
