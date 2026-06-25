@@ -1292,25 +1292,30 @@ func (f *NICoServerImpl) GetOsImage(ctx context.Context, req *cwssaws.UUID) (*cw
 }
 
 func (f *NICoServerImpl) GetAllExpectedMachinesLinked(ctx context.Context, req *emptypb.Empty) (*cwssaws.LinkedExpectedMachineList, error) {
-	if len(f.linkedExpectedMachines) > 0 {
-		return &cwssaws.LinkedExpectedMachineList{
-			ExpectedMachines: append([]*cwssaws.LinkedExpectedMachine(nil), f.linkedExpectedMachines...),
-		}, nil
+	// Seeded links (from YAML) are authoritative: they carry explicit
+	// machine_id wiring. Start from them, then append any runtime-created
+	// expected machines the seed doesn't already cover. A non-empty seed used
+	// to short-circuit here, hiding every dynamically created expected machine.
+	res := append([]*cwssaws.LinkedExpectedMachine(nil), f.linkedExpectedMachines...)
+
+	seeded := make(map[string]struct{}, len(res))
+	for _, le := range res {
+		seeded[le.GetExpectedMachineId().GetValue()] = struct{}{}
 	}
 
-	res := make([]*cwssaws.LinkedExpectedMachine, 0, len(f.em))
-	for _, em := range f.em {
+	for id, em := range f.em {
+		if _, ok := seeded[id]; ok {
+			continue // explicit YAML link wins
+		}
 		linked := &cwssaws.LinkedExpectedMachine{
 			ChassisSerialNumber: em.ChassisSerialNumber,
 			BmcMacAddress:       em.BmcMacAddress,
 			ExpectedMachineId:   em.Id,
 		}
 		// Link to the visible machine that carries this expected machine's BMC
-		// MAC (mock hosts are generated with mac 58:a2:e1:5b:d1:<b0+hostID>,
-		// matching the registered BmcMacAddress). Leaving MachineId nil when
-		// nothing matches models "not yet discovered" instead of collapsing
-		// every expected machine onto the first host — which made concurrent
-		// reservations collide on a single machine id.
+		// MAC (mock hosts use mac 58:a2:e1:5b:d1:<b0+hostID>). Leaving MachineId
+		// nil when nothing matches models "not yet discovered" instead of
+		// collapsing every expected machine onto the first host.
 		if mid := f.machineIDByMAC(em.BmcMacAddress); mid != "" {
 			linked.MachineId = &cwssaws.MachineId{Id: mid}
 		}
