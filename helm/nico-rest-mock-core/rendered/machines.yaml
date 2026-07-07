@@ -99,22 +99,14 @@ machines:
             - memType: DDR5
               sizeMb: 32768
         networkInterfaces:
-            - lldp:
-                portId: ifname=eth1/1
-                switchId: mac=00:01:00:00:01:00
-                switchSystemName: leaf-0
-              macAddress: "52:54:00:12:00:00"
+            - macAddress: "52:54:00:12:00:00"
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 path: /devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/eth1
                 slot: "0000:01:00.0"
                 vendor: Mellanox Technologies
-            - lldp:
-                portId: ifname=eth1/1
-                switchId: mac=00:01:00:00:01:01
-                switchSystemName: leaf-1
-              macAddress: "52:54:00:12:00:02"
+            - macAddress: "52:54:00:12:00:02"
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
@@ -304,22 +296,14 @@ machines:
             - memType: DDR5
               sizeMb: 32768
         networkInterfaces:
-            - lldp:
-                portId: ifname=eth1/3
-                switchId: mac=00:01:00:00:01:00
-                switchSystemName: leaf-0
-              macAddress: "52:54:00:12:00:04"
+            - macAddress: "52:54:00:12:00:04"
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 path: /devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/eth1
                 slot: "0000:01:00.0"
                 vendor: Mellanox Technologies
-            - lldp:
-                portId: ifname=eth1/3
-                switchId: mac=00:01:00:00:01:01
-                switchSystemName: leaf-1
-              macAddress: "52:54:00:12:00:06"
+            - macAddress: "52:54:00:12:00:06"
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
@@ -509,22 +493,14 @@ machines:
             - memType: DDR5
               sizeMb: 32768
         networkInterfaces:
-            - lldp:
-                portId: ifname=eth1/5
-                switchId: mac=00:01:00:00:01:00
-                switchSystemName: leaf-0
-              macAddress: "52:54:00:12:00:08"
+            - macAddress: "52:54:00:12:00:08"
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 path: /devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/eth1
                 slot: "0000:01:00.0"
                 vendor: Mellanox Technologies
-            - lldp:
-                portId: ifname=eth1/5
-                switchId: mac=00:01:00:00:01:01
-                switchSystemName: leaf-1
-              macAddress: 52:54:00:12:00:0A
+            - macAddress: 52:54:00:12:00:0A
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
@@ -714,22 +690,14 @@ machines:
             - memType: DDR5
               sizeMb: 32768
         networkInterfaces:
-            - lldp:
-                portId: ifname=eth1/7
-                switchId: mac=00:01:00:00:01:00
-                switchSystemName: leaf-0
-              macAddress: 52:54:00:12:00:0C
+            - macAddress: 52:54:00:12:00:0C
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 path: /devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/eth1
                 slot: "0000:01:00.0"
                 vendor: Mellanox Technologies
-            - lldp:
-                portId: ifname=eth1/7
-                switchId: mac=00:01:00:00:01:01
-                switchSystemName: leaf-1
-              macAddress: 52:54:00:12:00:0E
+            - macAddress: 52:54:00:12:00:0E
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
@@ -919,22 +887,14 @@ machines:
             - memType: DDR5
               sizeMb: 32768
         networkInterfaces:
-            - lldp:
-                portId: ifname=eth1/9
-                switchId: mac=00:01:00:00:01:00
-                switchSystemName: leaf-0
-              macAddress: "52:54:00:12:00:10"
+            - macAddress: "52:54:00:12:00:10"
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 path: /devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/eth1
                 slot: "0000:01:00.0"
                 vendor: Mellanox Technologies
-            - lldp:
-                portId: ifname=eth1/9
-                switchId: mac=00:01:00:00:01:01
-                switchSystemName: leaf-1
-              macAddress: "52:54:00:12:00:12"
+            - macAddress: "52:54:00:12:00:12"
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
@@ -1124,22 +1084,14 @@ machines:
             - memType: DDR5
               sizeMb: 32768
         networkInterfaces:
-            - lldp:
-                portId: ifname=eth1/11
-                switchId: mac=00:01:00:00:01:00
-                switchSystemName: leaf-0
-              macAddress: "52:54:00:12:00:14"
+            - macAddress: "52:54:00:12:00:14"
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 path: /devices/pci0000:00/0000:00:01.3/0000:01:00.0/net/eth1
                 slot: "0000:01:00.0"
                 vendor: Mellanox Technologies
-            - lldp:
-                portId: ifname=eth1/11
-                switchId: mac=00:01:00:00:01:01
-                switchSystemName: leaf-1
-              macAddress: "52:54:00:12:00:16"
+            - macAddress: "52:54:00:12:00:16"
               pciProperties:
                 description: MT43244 BlueField-3 integrated ConnectX-7 network controller
                 device: MT43244 BlueField-3 integrated ConnectX-7 network controller
